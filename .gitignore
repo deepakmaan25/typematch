@@ -1,0 +1,21 @@
+# Design source archives — not needed in deployment
+design.tar.gz
+
+# Claude Code IDE config
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (if a build step is added later)
+node_modules/
+.env
+.env.local
