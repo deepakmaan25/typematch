@@ -93,6 +93,22 @@ function freeFormBoost(font, query) {
   return Math.min(15, b);
 }
 
+// Temporary enrichment gate (Step 4 / Phase 1).
+// Curated + open-library fonts always pass — they have rich metadata.
+// GF entries must have at least one enrichment field before joining results,
+// otherwise bare catalog entries (score ~46–70) would pollute rankings.
+// Remove / loosen this gate once a GF metadata enrichment pass lands.
+function passesEnrichmentGate(font) {
+  if (font.source !== 'google-fonts') return true;
+  return (
+    (Array.isArray(font.mood)        && font.mood.length        > 0) ||
+    (Array.isArray(font.personality) && font.personality.length > 0) ||
+    (font.contextScore && typeof font.contextScore === 'object')      ||
+    (Array.isArray(font.useCases)    && font.useCases.length    > 0) ||
+    (Array.isArray(font.goodFor)     && font.goodFor.length     > 0)
+  );
+}
+
 function scoreFont(font, query, collection=[]) {
   const ctxKey = resolveContextKey(query);
   const dims = {
@@ -187,19 +203,27 @@ function RecommendWizard({ collection, onResults }) {
           };
         }).sort((a,b)=>b.score-a.score).slice(0, 5);
 
-        // Score AI library, surface best new suggestions not already in collection
+        // Score AI library, surface best new suggestions not already in collection.
+        // Use ALL_FONTS when the GF catalog is ready, else fall back to OPEN_FONT_LIBRARY.
+        // The enrichment gate keeps bare GF entries (no mood/contextScore/useCases) out
+        // of results until a metadata enrichment pass promotes them.
         const collectionNames = new Set(collection.map(f=>f.name));
-        const libRanked = (window.OPEN_FONT_LIBRARY || []).map(font => {
-          const { dims, score } = scoreFont(font, q, collection);
-          return {
-            ...font, score, dims, source:'ai',
-            whyFits: buildWhyText(font, dims, q),
-            caution: buildCautionText(font, dims, q),
-            confidence: score,
-          };
-        }).filter(f => !collectionNames.has(f.name))
-          .sort((a,b)=>b.score-a.score)
-          .slice(0, 5);
+        const candidatePool = (window.__GF_CATALOG_READY && window.ALL_FONTS)
+          ? window.ALL_FONTS
+          : (window.OPEN_FONT_LIBRARY || []);
+        const libRanked = candidatePool
+          .filter(f => passesEnrichmentGate(f))
+          .map(font => {
+            const { dims, score } = scoreFont(font, q, collection);
+            return {
+              ...font, score, dims, source:'ai',
+              whyFits: buildWhyText(font, dims, q),
+              caution: buildCautionText(font, dims, q),
+              confidence: score,
+            };
+          }).filter(f => !collectionNames.has(f.name))
+            .sort((a,b)=>b.score-a.score)
+            .slice(0, 5);
 
         onResults({ collection: collectionResults, ai: libRanked, query: q });
       } catch (err) {
@@ -224,11 +248,16 @@ function RecommendWizard({ collection, onResults }) {
             whyFits: buildWhyText(font, dims, q), caution: buildCautionText(font, dims, q) };
         }).sort((a,b)=>b.score-a.score).slice(0, 5);
         const collectionNames = new Set(collection.map(f=>f.name));
-        const libRanked = (window.OPEN_FONT_LIBRARY || []).map(font => {
-          const { dims, score } = scoreFont(font, q, collection);
-          return { ...font, score, dims, source:'ai',
-            whyFits: buildWhyText(font, dims, q), caution: buildCautionText(font, dims, q), confidence: score };
-        }).filter(f => !collectionNames.has(f.name)).sort((a,b)=>b.score-a.score).slice(0, 5);
+        const candidatePool = (window.__GF_CATALOG_READY && window.ALL_FONTS)
+          ? window.ALL_FONTS
+          : (window.OPEN_FONT_LIBRARY || []);
+        const libRanked = candidatePool
+          .filter(f => passesEnrichmentGate(f))
+          .map(font => {
+            const { dims, score } = scoreFont(font, q, collection);
+            return { ...font, score, dims, source:'ai',
+              whyFits: buildWhyText(font, dims, q), caution: buildCautionText(font, dims, q), confidence: score };
+          }).filter(f => !collectionNames.has(f.name)).sort((a,b)=>b.score-a.score).slice(0, 5);
         onResults({ collection: collectionResults, ai: libRanked, query: q });
       } catch (err) {
         console.error('[TypeMatch] retry scoring failed', err);
@@ -472,7 +501,7 @@ function AnalysisLoader() {
         <p style={{ fontSize:13, color:'var(--t3)', minWidth:260 }}>{stages[stageIdx]}</p>
       </div>
       <div style={{ display:'flex', gap:10, flexWrap:'wrap', justifyContent:'center' }}>
-        {['Collection scan','Mood matrix','Use-case fit','AI inference','Open-font library','Context score'].map((l,i)=>(
+        {['Collection scan','Mood matrix','Use-case fit','Ranked scoring','Open-font library','Context score'].map((l,i)=>(
           <div key={l} style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 12px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-pill)', animation:`breathe 1.2s ease infinite`, animationDelay:`${i*.16}s` }}>
             <div className="skeleton" style={{ width:6, height:6, borderRadius:'50%', flexShrink:0 }} />
             <span style={{ fontSize:11, color:'var(--t3)' }}>{l}</span>
@@ -505,7 +534,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
   const tabs = [
     { id:'all',        label:'All results', count: results.collection.length + results.ai.length },
     { id:'collection', label:'Collection',  count: results.collection.length },
-    { id:'ai',         label:'AI + Web',    count: results.ai.length },
+    { id:'ai',         label:'Suggestions',  count: results.ai.length },
   ];
 
   // Phase 3: explicit empty state with clear recovery CTA. Renders once both
@@ -585,7 +614,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, marginTop:4 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'var(--teal-dim)', border:'1px solid color-mix(in srgb,var(--teal) 20%,transparent)', borderRadius:'var(--r-md)' }}>
                       <Icon name="auto_awesome" size={13} style={{ color:'var(--teal)' }} />
-                      <span style={{ fontSize:11, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>AI + Web Suggestions</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Library Suggestions</span>
                       <Tooltip text="Surfaced from a curated open-font knowledge library, scored against your brief"><Icon name="info" size={12} style={{ color:'color-mix(in srgb,var(--teal) 50%,transparent)', cursor:'help' }} /></Tooltip>
                     </div>
                     <Divider style={{ flex:1 }} />
@@ -617,7 +646,7 @@ function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
           <ScoreRing value={font.score} size={50} color={color} strokeWidth={3.5} />
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:10, alignItems:'center' }}>
-              <Badge label={isAI?'AI + Web':'Your Collection'} color={isAI?'ai':'collection'} dot />
+              <Badge label={isAI?'Library':'Your Collection'} color={isAI?'ai':'collection'} dot />
               <Badge label={font.classification||font.subtype||'Font'} color="neutral" />
               {font.variable && <Badge label="Variable" color="primary" />}
               {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
@@ -628,15 +657,19 @@ function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
             </div>
             <div style={{ fontSize:11, color:'var(--t3)', marginBottom:12 }}>{font.name} · {font.foundry}</div>
 
-            <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, padding:'10px 14px', background:'var(--s3)', borderRadius:'var(--r-md)', borderLeft:`3px solid ${color}` }}>
-              <strong style={{ color, fontWeight:600 }}>Why it fits: </strong>{font.whyFits||font.reason}
-              {font.caution && (
-                <div style={{ marginTop:6, fontSize:11, color:'var(--warning)' }}>
-                  <Icon name="warning_amber" size={11} style={{ marginRight:4, verticalAlign:'middle' }} />
-                  Caution: {font.caution}
-                </div>
-              )}
-            </div>
+            {(font.whyFits || font.reason || font.caution) && (
+              <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, padding:'10px 14px', background:'var(--s3)', borderRadius:'var(--r-md)', borderLeft:`3px solid ${color}` }}>
+                {(font.whyFits || font.reason) && (
+                  <><strong style={{ color, fontWeight:600 }}>Why it fits: </strong>{font.whyFits||font.reason}</>
+                )}
+                {font.caution && (
+                  <div style={{ marginTop:(font.whyFits||font.reason)?6:0, fontSize:11, color:'var(--warning)' }}>
+                    <Icon name="warning_amber" size={11} style={{ marginRight:4, verticalAlign:'middle' }} />
+                    Caution: {font.caution}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -713,7 +746,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
 
   const BadgeRow = (
     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-      <Badge label={isAI?'AI + Web':'Library'} color={isAI?'ai':'collection'} dot />
+      <Badge label={isAI?'Library':'Your Collection'} color={isAI?'ai':'collection'} dot />
       <Badge label={font.classification||font.subtype||'Font'} color="neutral" />
       {font.variable && <Badge label="Variable" color="primary" />}
       {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
@@ -915,7 +948,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
   return (
     <div style={{ background:'var(--s3)', border:`1px solid color-mix(in srgb, ${c} 25%, transparent)`, borderRadius:'var(--r-xl)', overflow:'hidden', position:'sticky', top:0 }}>
       <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:10 }}>
-        <Badge label={isAI?'AI + Web':'Library'} color={isAI?'ai':'collection'} dot />
+        <Badge label={isAI?'Library':'Your Collection'} color={isAI?'ai':'collection'} dot />
         <span style={{ fontSize:14, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)', flex:1 }}>{font.name}</span>
         <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--t3)' }}><Icon name="close" size={16} /></button>
       </div>

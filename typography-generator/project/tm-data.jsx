@@ -466,6 +466,129 @@ const OPEN_FONT_LIBRARY = [
   },
 ];
 
+// ── Dev mode flag — shared by both IIFEs below ───────────────────────────────
+// Quiet on production (vercel.app, custom domains).
+// Active on localhost / file:// / ?debug=1
+const isDev = (typeof location !== 'undefined') && (
+  location.protocol === 'file:' ||
+  /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname) ||
+  /[?&]debug=1\b/.test(location.search)
+);
+
+// ───────────────────────────────────────────────────────────────────
+// Phase 1 schema migration — normalize legacy entries to the canonical
+// shape defined in tm-schema.jsx. Preserves legacy aliases on the same
+// object so scoreFont and existing UI continue to work unchanged.
+// See roadmap.md for the canonical schema.
+// ───────────────────────────────────────────────────────────────────
+(function migrateToCanonicalSchema() {
+  if (!window.TMSchema || typeof window.TMSchema.normalizeFont !== 'function') {
+    console.error('[TMSchema] tm-schema.jsx not loaded before tm-data.jsx — skipping migration');
+    return;
+  }
+  const { normalizeFont, validateFont } = window.TMSchema;
+
+  const normalizeWithSource = (arr, source) => {
+    const out = arr.map(f => normalizeFont({ ...f, source: f.source || source }));
+    arr.length = 0;
+    arr.push(...out);
+  };
+
+  normalizeWithSource(SAMPLE_COLLECTION, 'curated');
+  normalizeWithSource(OPEN_FONT_LIBRARY, 'open-library');
+
+  if (!isDev) return;
+
+  const all = [...SAMPLE_COLLECTION, ...OPEN_FONT_LIBRARY];
+  const reports = all
+    .map(f => ({ family: f.family, source: f.source, issues: validateFont(f) }))
+    .filter(r => r.issues.length);
+
+  if (reports.length) {
+    console.groupCollapsed(`[TMSchema] ${reports.length} validation issue(s) across ${all.length} fonts`);
+    reports.forEach(r => console.warn(`${r.family} (${r.source}):`, r.issues));
+    console.groupEnd();
+  } else {
+    console.info(`[TMSchema] all ${all.length} fonts valid against canonical schema`);
+  }
+})();
+
+// ───────────────────────────────────────────────────────────────────
+// Phase 1 Google Fonts catalog merge — non-blocking.
+// Starts the moment tm-google-fonts.json resolves (fetch began before
+// Babel fired). Combined catalog available long before user reaches Results.
+// Curated entries (SAMPLE_COLLECTION + OPEN_FONT_LIBRARY) always win.
+// ───────────────────────────────────────────────────────────────────
+(function initGFMerge() {
+  // Set synchronous defaults so ALL_FONTS is always defined,
+  // even if the fetch never completes.
+  window.__GF_CATALOG_READY = false;
+  window.GF_FONT_LIBRARY    = [];
+  window.ALL_FONTS          = [...SAMPLE_COLLECTION, ...OPEN_FONT_LIBRARY];
+
+  const promise = window.__GF_FONTS_PROMISE;
+  if (!promise || typeof promise.then !== 'function') {
+    if (isDev) console.warn('[TypeMatch] __GF_FONTS_PROMISE not found — GF catalog disabled. Check script load order in TypeMatch.html.');
+    return;
+  }
+
+  promise
+    .then(function (snapshot) {
+      const raw = (snapshot && Array.isArray(snapshot.fonts)) ? snapshot.fonts : [];
+
+      if (!raw.length) {
+        // Stub or empty snapshot — treat as a no-op; curated catalog stands.
+        window.__GF_CATALOG_READY = true;
+        if (isDev) console.info('[TypeMatch] GF snapshot loaded but empty (stub not yet populated).');
+        return;
+      }
+
+      // A — resolve Step 2 taxonomy debt: remap source:'web' → 'open-library'
+      OPEN_FONT_LIBRARY.forEach(function (f) {
+        if (f.source === 'web') f.source = 'open-library';
+      });
+
+      // B — build case-insensitive dedup index of all already-known families
+      const known = new Set();
+      SAMPLE_COLLECTION.forEach(function (f) { known.add(f.family.toLowerCase()); });
+      OPEN_FONT_LIBRARY.forEach(function (f) { known.add(f.family.toLowerCase()); });
+
+      // C — filter snapshot: only new families not already in the curated catalog
+      const { normalizeFont } = window.TMSchema;
+      const newFromGF = [];
+      raw.forEach(function (entry) {
+        const key = (entry.family || '').toLowerCase();
+        if (!key || known.has(key)) return;
+        known.add(key); // also deduplicates within the GF snapshot itself
+        newFromGF.push(normalizeFont(entry));
+      });
+
+      // D — expose combined catalog to window
+      window.GF_FONT_LIBRARY    = newFromGF;
+      window.ALL_FONTS          = [...SAMPLE_COLLECTION, ...OPEN_FONT_LIBRARY, ...newFromGF];
+      window.__GF_CATALOG_READY = true;
+
+      if (isDev) {
+        console.info(
+          `[TypeMatch] GF catalog merged: ${newFromGF.length} new families added ` +
+          `(${window.ALL_FONTS.length} total, ${raw.length} in snapshot).`
+        );
+      }
+
+      // E — signal any future reactive consumers
+      window.dispatchEvent(new CustomEvent('tm:catalog-updated', {
+        detail: { added: newFromGF.length, total: window.ALL_FONTS.length }
+      }));
+    })
+    .catch(function (err) {
+      // Fetch failed or JSON was invalid — preserve curated-only catalog exactly.
+      window.__GF_CATALOG_READY = false;
+      window.GF_FONT_LIBRARY    = [];
+      window.ALL_FONTS          = [...SAMPLE_COLLECTION, ...OPEN_FONT_LIBRARY];
+      if (isDev) console.warn('[TypeMatch] GF catalog failed to load — staying curated-only:', err.message);
+    });
+})();
+
 const RECOMMENDATION_PRESETS = [
   { id: 'saas',      label: 'Minimal SaaS',     icon: 'computer',         description: 'Clean, professional, functional', context:'saas' },
   { id: 'editorial', label: 'Editorial Luxury', icon: 'article',          description: 'Refined, authoritative, timeless', context:'editorial' },

@@ -414,6 +414,19 @@
 </head>
 <body>
 <div id="root"></div>
+<!-- GF catalog fetch — plain JS, starts before Babel transpilation.
+     Snapshot is ready well before the user can reach Results. -->
+<script>
+(function () {
+  var p = fetch('./tm-google-fonts.json')
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  window.__GF_FONTS_PROMISE = p;
+}());
+</script>
+<script type="text/babel" src="tm-schema.jsx"></script>
 <script type="text/babel" src="tm-data.jsx"></script>
 <script type="text/babel" src="tm-components.jsx"></script>
 <script type="text/babel" src="tm-landing.jsx"></script>
