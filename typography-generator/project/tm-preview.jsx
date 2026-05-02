@@ -11,36 +11,37 @@ const PREVIEW_TEMPLATES = [
   { id:'ui',        label:'UI interface',    icon:'web_asset' },
 ];
 
-// Base catalogue — always available (pre-loaded in HTML head via Google Fonts)
+// Fonts guaranteed loaded at app start (pre-loaded in TypeMatch.html <head>).
+// These never need injection — resolve immediately in loadFont().
+const PRELOADED_FONT_NAMES = new Set([
+  'Playfair Display', 'DM Sans', 'Fraunces', 'Space Grotesk',
+  'Cormorant Garamond', 'Syne', 'Libre Baskerville', 'DM Serif Display', 'Inter',
+]);
+
+// Base catalogue — always available (pre-loaded in HTML head via Google Fonts).
+// weightMin/weightMax sourced from tm-data.jsx + GF spec for each family.
 const ALL_PREVIEW_FONTS = [
-  { name:'Playfair Display', family:"'Playfair Display',serif",       type:'Serif' },
-  { name:'DM Sans',          family:"'DM Sans',sans-serif",           type:'Sans' },
-  { name:'Fraunces',         family:"'Fraunces',serif",               type:'Serif' },
-  { name:'Space Grotesk',    family:"'Space Grotesk',sans-serif",     type:'Sans' },
-  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",    type:'Serif' },
-  { name:'Syne',             family:"'Syne',sans-serif",              type:'Display' },
+  { name:'Playfair Display',  family:"'Playfair Display',serif",    type:'Serif',   weightMin:400, weightMax:900  },
+  { name:'DM Sans',           family:"'DM Sans',sans-serif",        type:'Sans',    weightMin:100, weightMax:1000 },
+  { name:'Fraunces',          family:"'Fraunces',serif",            type:'Serif',   weightMin:100, weightMax:900  },
+  { name:'Space Grotesk',     family:"'Space Grotesk',sans-serif",  type:'Sans',    weightMin:300, weightMax:700  },
+  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",  type:'Serif',   weightMin:300, weightMax:700  },
+  { name:'Syne',              family:"'Syne',sans-serif",           type:'Display', weightMin:400, weightMax:800  },
 ];
 
-// Convert a results/inspector font object → preview catalogue entry
+// Convert a results/inspector font object → preview catalogue entry.
+// Forwards weightMin/weightMax from the canonical schema (set by normalizeFont
+// via parseWeightRange). These drive both buildGFUrl and the weight button UI.
 function toPreviewEntry(font) {
   return {
-    name: font.name,
-    // Results fonts carry fontFamily as a CSS string; fall back to a safe default
-    family: font.fontFamily || `'${font.name}', sans-serif`,
-    type: font.classification || 'Custom',
-    injected: true,   // mark so the sidebar can show a visual hint
+    name:      font.name,
+    family:    font.fontFamily || font.cssFamily || `'${font.name}', sans-serif`,
+    type:      font.classification || font.category || 'Custom',
+    injected:  true,
+    loaded:    font.loaded || false,
+    weightMin: Number.isFinite(font.weightMin) ? font.weightMin : 400,
+    weightMax: Number.isFinite(font.weightMax) ? font.weightMax : 700,
   };
-}
-
-// Ensure a Google Font is loaded; safe to call repeatedly (idempotent)
-function ensureFontLoaded(name) {
-  const id = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id   = id;
-  link.rel  = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
-  document.head.appendChild(link);
 }
 
 // Build the initial working catalogue: base + injected font if not already present
@@ -50,43 +51,229 @@ function buildCatalogue(font) {
   return [toPreviewEntry(font), ...ALL_PREVIEW_FONTS];
 }
 
+// Build a Google Fonts API URL for the given font.
+// Requests only the UI-exposed weights (300, 400, 500, 700) that fall within
+// the font's declared weight range (font.weightMin–font.weightMax). This
+// prevents requesting weights a font doesn't have, and keeps the URL honest.
+// GF returns whatever is actually available; requesting within-range extras is safe.
+function buildGFUrl(name, font) {
+  const min = Number.isFinite(font?.weightMin) ? font.weightMin : 400;
+  const max = Number.isFinite(font?.weightMax) ? font.weightMax : 700;
+  const weights = [300, 400, 500, 700].filter(w => w >= min && w <= max);
+  if (weights.length === 0) weights.push(400); // safety: every GF font has 400
+  return `https://fonts.googleapis.com/css2?family=${name.replace(/ /g,'+')}:wght@${weights.join(';')}&display=swap`;
+}
+
+// Async font loader — the single source of truth for getting a font ready to paint.
+//
+// Returns a Promise that:
+//   resolves — font is in the browser FontFaceSet and ready to use
+//   rejects  — network error, font not in GF catalog, or 12s timeout
+//
+// Strategy:
+//   1. Pre-loaded fonts (PRELOADED_FONT_NAMES or font.loaded === true) → resolve instantly
+//   2. Already in FontFaceSet (loaded earlier this session) → resolve instantly
+//   3. Otherwise: inject GF stylesheet → wait for CSS parse → verify via Font Loading API
+//
+// Idempotent: calling it N times for the same font is safe.
+function loadFont(name, font) {
+  // Already guaranteed available — no network needed
+  if (PRELOADED_FONT_NAMES.has(name) || font?.loaded === true) {
+    return Promise.resolve();
+  }
+
+  const fontSpec = `400 1em "${name}"`;
+
+  // Already in the browser's FontFaceSet (e.g., loaded earlier this session)
+  if (document.fonts.check(fontSpec)) return Promise.resolve();
+
+  const id = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
+  let link = document.getElementById(id);
+
+  if (!link) {
+    link = document.createElement('link');
+    link.id   = id;
+    link.rel  = 'stylesheet';
+    link.href = buildGFUrl(name, font);
+    document.head.appendChild(link);
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`Font load timeout: ${name}`)),
+      12000
+    );
+
+    const afterStylesheet = () => {
+      // Font Loading API: resolves with matching FontFace objects once the
+      // font file is downloaded. Empty array = font not found in the CSS.
+      document.fonts.load(fontSpec)
+        .then(faces => {
+          clearTimeout(timeout);
+          if (faces && faces.length > 0) resolve();
+          else reject(new Error(`Font not available in Google Fonts: ${name}`));
+        })
+        .catch(err => { clearTimeout(timeout); reject(err); });
+    };
+
+    // link.sheet is non-null once the browser has parsed the CSS.
+    // If it's already parsed (link injected by a prior call), go immediately;
+    // otherwise wait for the load event.
+    if (link.sheet != null) {
+      afterStylesheet();
+    } else {
+      link.addEventListener('load',  afterStylesheet, { once: true });
+      link.addEventListener('error', () => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to fetch font stylesheet: ${name}`));
+      }, { once: true });
+    }
+  });
+}
+
+// UI-exposed weights. Must exactly match the weight buttons rendered in the
+// sidebar so getSupportedWeights and the button list stay in sync automatically.
+const UI_WEIGHTS = [300, 400, 500, 700];
+
+// Returns weight support status for each UI weight across the current selection.
+//   'ok'      — every selected font can render this weight (within declared range)
+//   'partial' — some fonts support it, others will CSS-snap to their nearest weight
+//   'none'    — no selected font supports it; rendering would be misleading
+function getSupportedWeights(catalogue, selectedFontNames) {
+  if (!selectedFontNames.length) {
+    return UI_WEIGHTS.map(w => ({ weight: w, status: 'ok', blockingFonts: [] }));
+  }
+  const ranges = selectedFontNames
+    .map(n => catalogue.find(f => f.name === n))
+    .filter(Boolean)
+    .map(f => ({ name: f.name, min: f.weightMin ?? 400, max: f.weightMax ?? 700 }));
+
+  return UI_WEIGHTS.map(w => {
+    const blocking   = ranges.filter(f => w < f.min || w > f.max);
+    const supporting = ranges.filter(f => w >= f.min && w <= f.max);
+    return {
+      weight:       w,
+      status:       blocking.length === 0   ? 'ok'
+                  : supporting.length === 0 ? 'none'
+                  :                           'partial',
+      blockingFonts: blocking.map(f => f.name),
+    };
+  });
+}
+
+// Clamp fontWeight to the nearest weight supported by all selected fonts.
+// Prefers universally-supported weights; falls back to partially-supported.
+// Guarantees a usable weight even in worst-case single-weight font selections.
+function clampToSupported(currentWeight, catalogue, selectedFontNames) {
+  const support    = getSupportedWeights(catalogue, selectedFontNames);
+  const ok         = support.filter(ws => ws.status === 'ok').map(ws => ws.weight);
+  const any        = support.filter(ws => ws.status !== 'none').map(ws => ws.weight);
+  const candidates = ok.length > 0 ? ok : any.length > 0 ? any : [400];
+  if (candidates.includes(currentWeight)) return currentWeight;
+  return candidates.reduce((best, w) =>
+    Math.abs(w - currentWeight) < Math.abs(best - currentWeight) ? w : best
+  );
+}
+
 function PreviewLab({ initialFont }) {
-  // fontCatalogue = base list + any fonts injected from Results / Inspector.
-  // Stored in state so new injections trigger a re-render of the sidebar.
   const [fontCatalogue, setFontCatalogue] = useState(() => buildCatalogue(initialFont));
 
   const [selectedFonts, setSelectedFonts] = useState(() => {
     if (!initialFont?.name) return ['Playfair Display', 'DM Sans'];
-    // initialFont is guaranteed to be in the catalogue we just built
     return [initialFont.name];
   });
 
-  // When initialFont changes (user opens a different font in Preview from the
-  // Inspector), inject the font if missing and auto-select it immediately.
+  // Per-font load status: 'loaded' | 'loading' | 'failed'
+  // Pre-loaded fonts start as 'loaded'. Injected fonts start as 'loading'.
+  const [fontStatus, setFontStatus] = useState(() => {
+    const s = {};
+    PRELOADED_FONT_NAMES.forEach(n => { s[n] = 'loaded'; });
+    if (initialFont?.name) {
+      const ready = PRELOADED_FONT_NAMES.has(initialFont.name) || initialFont.loaded === true;
+      s[initialFont.name] = ready ? 'loaded' : 'loading';
+    }
+    return s;
+  });
+
+  // Trigger an async font load and update fontStatus when it settles.
+  // Safe to call multiple times — loadFont is idempotent for the normal path.
+  //
+  // Retry path: if the font previously failed, its <link> is still in the DOM
+  // but in an error state (link.sheet === null permanently). A new `load`
+  // listener on a dead link never fires; the Promise would just time out at 12s.
+  // We remove the stale link first so loadFont() creates a fresh stylesheet
+  // request from scratch.
+  function loadFontAndTrack(name, font) {
+    if (fontStatus[name] === 'failed') {
+      const staleId = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
+      document.getElementById(staleId)?.remove();
+    }
+    setFontStatus(prev => {
+      if (prev[name] === 'loaded') return prev;
+      return { ...prev, [name]: 'loading' };
+    });
+    loadFont(name, font)
+      .then(() => setFontStatus(prev => ({ ...prev, [name]: 'loaded' })))
+      .catch(() => setFontStatus(prev => ({ ...prev, [name]: 'failed' })));
+  }
+
+  // When initialFont changes: inject into catalogue, load it, auto-select.
   useEffect(() => {
     if (!initialFont?.name) return;
     const name = initialFont.name;
     setFontCatalogue(prev => {
       if (prev.some(f => f.name === name)) return prev;
-      ensureFontLoaded(name);
       return [toPreviewEntry(initialFont), ...prev];
     });
+    if (fontStatus[name] !== 'loaded') {
+      loadFontAndTrack(name, initialFont);
+    }
     setSelectedFonts([name]);
-  }, [initialFont?.name]);
-  const [template,     setTemplate]     = useState('article');
-  const [darkBg,       setDarkBg]       = useState(false);
-  const [fontSize,     setFontSize]     = useState(48);
-  const [fontWeight,   setFontWeight]   = useState(700);
-  const [lineHeight,   setLineHeight]   = useState(120);
-  const [letterSpacing,setLetterSpacing]= useState(0);
-  const [customText,   setCustomText]   = useState('The craft of beautiful typography starts here.');
-  const [saved,        setSaved]        = useState([]);
-  const [showSaved,    setShowSaved]    = useState(false);
+  }, [initialFont?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On mount: start loading initialFont if it's not from the pre-loaded set.
+  useEffect(() => {
+    if (!initialFont?.name) return;
+    if (!PRELOADED_FONT_NAMES.has(initialFont.name) && initialFont.loaded !== true) {
+      loadFontAndTrack(initialFont.name, initialFont);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [template,      setTemplate]      = useState('article');
+  const [darkBg,        setDarkBg]        = useState(false);
+  const [fontSize,      setFontSize]      = useState(48);
+  // Initialize fontWeight clamped to the initial selection's actual weight range,
+  // so the active button is never disabled on first render.
+  const [fontWeight, setFontWeight] = useState(() => {
+    const initSelected = initialFont?.name ? [initialFont.name] : ['Playfair Display', 'DM Sans'];
+    return clampToSupported(700, buildCatalogue(initialFont), initSelected);
+  });
+  const [lineHeight,    setLineHeight]    = useState(120);
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [customText,    setCustomText]    = useState('The craft of beautiful typography starts here.');
+  const [saved,         setSaved]         = useState([]);
+  const [showSaved,     setShowSaved]     = useState(false);
 
   function toggleFont(name) {
-    setSelectedFonts(prev => prev.includes(name)
-      ? prev.filter(n=>n!==name)
-      : prev.length < 3 ? [...prev,name] : [prev[1],prev[2]||name,name].slice(-3));
+    const status = fontStatus[name];
+    // Kick off loading when font has never been attempted or previously failed.
+    // A failed font can be retried by toggling it again.
+    if (status !== 'loaded' && status !== 'loading') {
+      const fontData = fontCatalogue.find(f => f.name === name);
+      loadFontAndTrack(name, fontData);
+    }
+    // Compute next selection synchronously so we can clamp fontWeight in the
+    // same event handler — before React re-renders the weight buttons.
+    const next = selectedFonts.includes(name)
+      ? selectedFonts.filter(n => n !== name)
+      : selectedFonts.length < 3
+        ? [...selectedFonts, name]
+        : [selectedFonts[1], selectedFonts[2] || name, name].slice(-3);
+    setSelectedFonts(next);
+    // If the current fontWeight is outside the new selection's supported range,
+    // snap to the nearest weight that all selected fonts can render correctly.
+    const clamped = clampToSupported(fontWeight, fontCatalogue, next);
+    if (clamped !== fontWeight) setFontWeight(clamped);
   }
 
   function saveComparison() {
@@ -95,10 +282,10 @@ function PreviewLab({ initialFont }) {
 
   // Canvas-level bg/text colors — controlled by the darkBg canvas toggle,
   // independent of the app shell theme. UI chrome uses CSS custom properties.
-  const bgColor   = darkBg ? '#0f0f16'              : '#ffffff';
+  const bgColor   = darkBg ? '#0f0f16'               : '#ffffff';
   const textColor = darkBg ? 'rgba(255,255,255,0.92)' : '#111118';
   const subColor  = darkBg ? 'rgba(255,255,255,0.45)' : '#666680';
-  const cardBg    = darkBg ? '#1a1a26'              : '#f5f5f8';
+  const cardBg    = darkBg ? '#1a1a26'               : '#f5f5f8';
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
@@ -131,7 +318,13 @@ function PreviewLab({ initialFont }) {
             <p style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:10 }}>Fonts (up to 3)</p>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {fontCatalogue.map(f => {
-                const sel = selectedFonts.includes(f.name);
+                const sel    = selectedFonts.includes(f.name);
+                const status = fontStatus[f.name] || 'loaded';
+                // Status dot color: failed=red, loading=amber, selected=primary, idle=muted
+                const dotColor = status === 'failed'  ? 'var(--error, #d32f2f)'
+                               : status === 'loading' ? '#f59e0b'
+                               : sel                  ? 'var(--primary)'
+                               :                        'var(--t4)';
                 return (
                   <button key={f.name} onClick={()=>toggleFont(f.name)}
                     style={{
@@ -139,13 +332,16 @@ function PreviewLab({ initialFont }) {
                       border:`1px solid ${sel ? 'color-mix(in srgb, var(--primary) 40%, transparent)' : 'var(--b1)'}`,
                       background: sel ? 'color-mix(in srgb, var(--primary) 9%, transparent)' : 'transparent',
                       cursor:'pointer', transition:'all 0.15s', color:'inherit',
+                      opacity: status === 'failed' ? 0.65 : 1,
                     }}>
-                    <div style={{ width:8, height:8, borderRadius:'50%', background: sel ? 'var(--primary)' : 'var(--t4)', flexShrink:0 }} />
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:dotColor, flexShrink:0 }} />
                     <div style={{ flex:1, textAlign:'left' }}>
                       <div style={{ fontSize:12, color: sel ? 'var(--t1)' : 'var(--t2)', fontWeight: sel ? 500 : 400 }}>{f.name}</div>
                       <div style={{ fontSize:10, color:'var(--t4)' }}>
                         {f.type}
-                        {f.injected && <span style={{ marginLeft:5, color:'var(--primary)', opacity:.7 }}>· from results</span>}
+                        {f.injected && status !== 'failed' && <span style={{ marginLeft:5, color:'var(--primary)', opacity:.7 }}>· from results</span>}
+                        {status === 'loading' && <span style={{ marginLeft:5, color:'#f59e0b' }}>· loading…</span>}
+                        {status === 'failed'  && <span style={{ marginLeft:5, color:'var(--error, #d32f2f)' }}>· unavailable</span>}
                       </div>
                     </div>
                   </button>
@@ -162,23 +358,82 @@ function PreviewLab({ initialFont }) {
             <RangeSlider label="Size" value={fontSize} onChange={setFontSize} min={12} max={120} leftLabel="12px" rightLabel="120px" />
             <div>
               <p style={{ fontSize:11, color:'var(--t3)', marginBottom:8 }}>Weight</p>
-              <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                {[300,400,500,700].map(w => {
-                  const active = fontWeight === w;
-                  return (
-                    <button key={w} onClick={()=>setFontWeight(w)}
-                      style={{
-                        padding:'4px 10px', borderRadius:3,
-                        border:`1px solid ${active ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--b1)'}`,
-                        background: active ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
-                        color: active ? 'var(--primary)' : 'var(--t3)',
-                        fontSize:11, cursor:'pointer', fontFamily:'Roboto,sans-serif', fontWeight:w,
-                      }}>
-                      {w}
-                    </button>
-                  );
-                })}
-              </div>
+              {(() => {
+                const support    = getSupportedWeights(fontCatalogue, selectedFonts);
+                const restricted = support.filter(ws => ws.status !== 'ok');
+                return (
+                  <>
+                    {/*
+                      role="group" + aria-label groups the buttons semantically.
+                      Individual aria-labels carry the full explanation so screen
+                      readers don't need to reach the footer notes.
+                      aria-disabled keeps blocked buttons focusable (keyboard
+                      users can tab to them and hear why they're unavailable);
+                      the onClick guard already prevents activation.
+                    */}
+                    <div role="group" aria-label="Font weight" style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                      {support.map(({ weight:w, status, blockingFonts }) => {
+                        const active   = fontWeight === w;
+                        const disabled = status === 'none';
+                        const partial  = status === 'partial';
+                        const names    = blockingFonts.join(', ');
+                        // Full description for screen readers and keyboard users.
+                        // tooltip (title) is a secondary hint for sighted mouse users only.
+                        const ariaLabel = disabled
+                          ? `Weight ${w} — not supported by ${names}`
+                          : partial
+                            ? `Weight ${w} — ${names} will render at nearest available weight`
+                            : `Weight ${w}`;
+                        const tip = blockingFonts.length
+                          ? `${names} ${blockingFonts.length > 1 ? "don't" : "doesn't"} support weight ${w}`
+                          : undefined;
+                        return (
+                          <button key={w}
+                            aria-disabled={disabled ? 'true' : undefined}
+                            aria-pressed={disabled ? undefined : active}
+                            aria-label={ariaLabel}
+                            onClick={() => !disabled && setFontWeight(w)}
+                            title={tip}
+                            style={{
+                              padding:'4px 10px', borderRadius:3,
+                              border:`1px solid ${active && !disabled ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--b1)'}`,
+                              background: active && !disabled ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
+                              color: disabled ? 'var(--t4)' : active ? 'var(--primary)' : 'var(--t3)',
+                              fontSize:11,
+                              cursor: disabled ? 'not-allowed' : 'pointer',
+                              fontFamily:'Roboto,sans-serif', fontWeight:w,
+                              // Opacity alone is not the primary signal — the footer notes
+                              // carry the explanation. Opacity just reinforces the state.
+                              opacity: disabled ? 0.45 : partial ? 0.85 : 1,
+                              position:'relative',
+                            }}>
+                            {w}
+                            {/* aria-hidden: the * is decorative; aria-label carries the meaning */}
+                            {partial && <span aria-hidden="true" style={{ fontSize:8, color:'#f59e0b', marginLeft:1, verticalAlign:'super' }}>*</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Per-weight notes — specific, always visible, no hover or tooltip needed.
+                        Each line names the blocking font(s) so the user knows exactly what to do. */}
+                    {restricted.length > 0 && (
+                      <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:2 }}>
+                        {restricted.map(({ weight:w, status, blockingFonts }) => {
+                          const names = blockingFonts.join(', ');
+                          return (
+                            <p key={w} style={{ fontSize:9, color:'var(--t4)', lineHeight:1.45, margin:0 }}>
+                              {status === 'none'
+                                ? <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}</strong> — not supported by {names}</>
+                                : <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}*</strong> — {names} will use nearest weight</>
+                              }
+                            </p>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <RangeSlider label="Line height" value={lineHeight} onChange={setLineHeight} min={80} max={200} leftLabel="Tight" rightLabel="Loose" />
             <RangeSlider label="Letter spacing" value={letterSpacing} onChange={setLetterSpacing} min={-50} max={200} leftLabel="Tight" rightLabel="Wide" />
@@ -222,6 +477,7 @@ function PreviewLab({ initialFont }) {
                     textColor={textColor}
                     subColor={subColor}
                     cardBg={cardBg}
+                    loadStatus={fontStatus[fontName] || 'loaded'}
                   />
                 );
               })}
@@ -241,7 +497,14 @@ function PreviewLab({ initialFont }) {
             {saved.length === 0 ? (
               <p style={{ fontSize:12, color:'var(--t4)', textAlign:'center', padding:'24px 0' }}>No saves yet</p>
             ) : saved.map((s,i) => (
-              <div key={i} style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:6, marginBottom:8, cursor:'pointer' }} onClick={()=>{setSelectedFonts(s.fonts);setTemplate(s.template);setCustomText(s.text);}}>
+              <div key={i} style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:6, marginBottom:8, cursor:'pointer' }} onClick={() => {
+                  setSelectedFonts(s.fonts);
+                  setTemplate(s.template);
+                  setCustomText(s.text);
+                  // Clamp fontWeight to what the restored fonts actually support
+                  const clamped = clampToSupported(fontWeight, fontCatalogue, s.fonts);
+                  if (clamped !== fontWeight) setFontWeight(clamped);
+                }}>
                 <div style={{ fontSize:11, fontWeight:500, color:'var(--t2)', marginBottom:4 }}>{s.fonts.join(' + ')}</div>
                 <div style={{ fontSize:10, color:'var(--t4)' }}>{s.template} · {s.time}</div>
               </div>
@@ -253,7 +516,49 @@ function PreviewLab({ initialFont }) {
   );
 }
 
-function PreviewCard({ font, template, text, fontSize, fontWeight, lineHeight, letterSpacing, darkBg, bgColor, textColor, subColor, cardBg }) {
+function PreviewCard({ font, template, text, fontSize, fontWeight, lineHeight, letterSpacing, darkBg, bgColor, textColor, subColor, cardBg, loadStatus }) {
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  // Render a skeleton instead of a fallback-font canvas. This prevents the
+  // UI from silently showing system-ui while the real font downloads.
+  if (loadStatus === 'loading') {
+    return (
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'8px 14px', background:'var(--s2)', borderRadius:'8px 8px 0 0', border:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8, borderBottom:'none' }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:'#f59e0b' }} />
+          <span style={{ fontSize:12, fontWeight:500, color:'var(--t2)' }}>{font.name}</span>
+          <Badge label="Loading…" color="neutral" />
+        </div>
+        <div style={{ border:'1px solid var(--b1)', borderRadius:'0 0 8px 8px', background:bgColor, minHeight:240, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+          <Icon name="hourglass_top" size={28} style={{ color:'var(--t4)' }} />
+          <span style={{ fontSize:12, color:'var(--t4)' }}>Loading font…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Failed state ───────────────────────────────────────────────────────────
+  // Show an honest error: don't pretend the font applied when it didn't.
+  // The user can retry by de-selecting and re-selecting the font in the sidebar.
+  if (loadStatus === 'failed') {
+    return (
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'8px 14px', background:'var(--s2)', borderRadius:'8px 8px 0 0', border:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8, borderBottom:'none' }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--error, #d32f2f)' }} />
+          <span style={{ fontSize:12, fontWeight:500, color:'var(--t2)' }}>{font.name}</span>
+          <Badge label="Unavailable" color="neutral" />
+        </div>
+        <div style={{ border:'1px solid var(--b1)', borderRadius:'0 0 8px 8px', background:bgColor, minHeight:240, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:8, padding:24, textAlign:'center' }}>
+          <Icon name="font_download_off" size={32} style={{ color:'var(--t4)' }} />
+          <span style={{ fontSize:13, fontWeight:500, color:'var(--t2)' }}>Preview unavailable</span>
+          <span style={{ fontSize:11, color:'var(--t4)' }}>{font.name} could not be loaded from Google Fonts</span>
+          <span style={{ fontSize:10, color:'var(--t4)', marginTop:4, opacity:.7 }}>Toggle the font in the sidebar to retry</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loaded — normal render ─────────────────────────────────────────────────
   const ff = font.family;
   const mainStyle = { fontFamily:ff, fontSize, fontWeight, lineHeight, letterSpacing:`${letterSpacing}em`, color:textColor, wordBreak:'break-word', textWrap:'pretty' };
   const headlineText = text || 'Typography is a craft worth mastering.';

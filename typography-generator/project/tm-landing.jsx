@@ -76,7 +76,7 @@ function Landing({ onStart }) {
             </h1>
 
             <p style={{ fontSize:16, color:'var(--t3)', lineHeight:1.78, marginBottom:40, maxWidth:440 }}>
-              TypeMatch combines your curated font library with AI-powered research to surface exactly the right typeface — with full reasoning, not just a list.
+              TypeMatch uses structured scoring against your brief to surface exactly the right typeface — with full reasoning, not just a list.
             </p>
 
             {/* CTAs: primary + distinct secondary (scroll-to-demo, not onStart) */}
@@ -101,7 +101,7 @@ function Landing({ onStart }) {
             <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
               {[
                 ['Your collection', 'collections_bookmark', 'var(--purple)'],
-                ['AI + Web',        'auto_awesome',         'var(--teal)'],
+                ['Library matches',  'auto_awesome',         'var(--teal)'],
                 ['Full reasoning',  'verified',             'var(--warm)'],
               ].map(([l,ic,c])=>(
                 <div key={l} style={{ display:'flex', alignItems:'center', gap:7 }}>
@@ -227,7 +227,7 @@ function Landing({ onStart }) {
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'rgba(45,212,160,0.07)', border:'1px solid rgba(45,212,160,0.2)', borderRadius:'var(--r-md)' }}>
                 <Icon name="auto_awesome" size={13} style={{ color:'var(--teal)' }} />
-                <span style={{ fontSize:11, fontWeight:600, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>AI + Web</span>
+                <span style={{ fontSize:11, fontWeight:600, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Library</span>
               </div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -245,7 +245,7 @@ function Landing({ onStart }) {
                     <div style={{ fontFamily:f.family, fontSize:22, fontWeight:700, color:'var(--t1)', marginBottom:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name}</div>
                     <div style={{ fontSize:11, color:'var(--t3)' }}>{f.mood}</div>
                   </div>
-                  <Badge label={f.src==='ai'?'AI + Web':'Collection'} color={f.src==='ai'?'ai':'collection'} dot />
+                  <Badge label={f.src==='ai'?'Library':'Collection'} color={f.src==='ai'?'ai':'collection'} dot />
                 </div>
               ))}
             </div>
@@ -265,7 +265,7 @@ function Landing({ onStart }) {
             {[
               { n:'01', color:'var(--purple)', title:'Build your collection', body:"Import typefaces and enrich them with mood, use case, readability, and brand fit metadata. The more you add, the smarter it gets." },
               { n:'02', color:'var(--primary)', title:'Describe your need', body:"Tell TypeMatch the project type, the mood it should express, and how it'll be read. Smart chips and sliders make this fast and precise." },
-              { n:'03', color:'var(--teal)', title:'Get ranked matches', body:'Results split clearly: fonts from your collection ranked by fit, and AI-researched suggestions with full sourcing and explainability.' },
+              { n:'03', color:'var(--teal)', title:'Get ranked matches', body:'Results split clearly: fonts from your collection ranked by fit, and library suggestions scored against your brief, with full explainability.' },
             ].map((s,i)=>(
               <div key={s.n} className="fade-up" style={{ animationDelay:`${i*.12}s`, display:'flex', gap:20, padding:'24px 20px', borderRadius:'var(--r-lg)', transition:'all .15s' }}
                 onMouseEnter={e=>e.currentTarget.style.background='var(--s2)'}
@@ -286,7 +286,7 @@ function Landing({ onStart }) {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           {[
             { color:'var(--purple)', bg:'rgba(168,127,255,0.06)', border:'rgba(168,127,255,0.15)', icon:'collections_bookmark', label:'Source 01', title:'From Your Collection', body:'Every recommendation from your library includes exact metadata you added — moods, use cases, readability scores, and brand fit. Completely contextual.' },
-            { color:'var(--teal)',   bg:'rgba(45,212,160,0.05)',  border:'rgba(45,212,160,0.14)',  icon:'auto_awesome',         label:'Source 02', title:'AI + Web Suggestions', body:'AI-researched recommendations informed by real-world usage patterns, foundry context, and type community knowledge. Always explained, always sourced.' },
+            { color:'var(--teal)',   bg:'rgba(45,212,160,0.05)',  border:'rgba(45,212,160,0.14)',  icon:'auto_awesome',         label:'Source 02', title:'Library Suggestions', body:'Suggestions drawn from a curated open-font library, scored across mood, use case, readability, and brand fit. Always ranked, always explained.' },
           ].map(s=>(
             <div key={s.title} style={{ padding:'36px 32px', background:s.bg, border:`1px solid ${s.border}`, borderRadius:'var(--r-xl)' }}>
               <SectionLabel style={{ color:s.color, marginBottom:14 }}>{s.label}</SectionLabel>
