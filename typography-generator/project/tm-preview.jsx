@@ -360,21 +360,38 @@ function PreviewLab({ initialFont }) {
               <p style={{ fontSize:11, color:'var(--t3)', marginBottom:8 }}>Weight</p>
               {(() => {
                 const support    = getSupportedWeights(fontCatalogue, selectedFonts);
-                const hasPartial = support.some(ws => ws.status === 'partial');
+                const restricted = support.filter(ws => ws.status !== 'ok');
                 return (
                   <>
-                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                    {/*
+                      role="group" + aria-label groups the buttons semantically.
+                      Individual aria-labels carry the full explanation so screen
+                      readers don't need to reach the footer notes.
+                      aria-disabled keeps blocked buttons focusable (keyboard
+                      users can tab to them and hear why they're unavailable);
+                      the onClick guard already prevents activation.
+                    */}
+                    <div role="group" aria-label="Font weight" style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                       {support.map(({ weight:w, status, blockingFonts }) => {
                         const active   = fontWeight === w;
                         const disabled = status === 'none';
                         const partial  = status === 'partial';
-                        // Tooltip says which font(s) don't support this weight
+                        const names    = blockingFonts.join(', ');
+                        // Full description for screen readers and keyboard users.
+                        // tooltip (title) is a secondary hint for sighted mouse users only.
+                        const ariaLabel = disabled
+                          ? `Weight ${w} — not supported by ${names}`
+                          : partial
+                            ? `Weight ${w} — ${names} will render at nearest available weight`
+                            : `Weight ${w}`;
                         const tip = blockingFonts.length
-                          ? `${blockingFonts.join(', ')} ${blockingFonts.length > 1 ? "don't" : "doesn't"} support weight ${w}`
-                          : '';
+                          ? `${names} ${blockingFonts.length > 1 ? "don't" : "doesn't"} support weight ${w}`
+                          : undefined;
                         return (
                           <button key={w}
-                            disabled={disabled}
+                            aria-disabled={disabled ? 'true' : undefined}
+                            aria-pressed={disabled ? undefined : active}
+                            aria-label={ariaLabel}
                             onClick={() => !disabled && setFontWeight(w)}
                             title={tip}
                             style={{
@@ -382,20 +399,37 @@ function PreviewLab({ initialFont }) {
                               border:`1px solid ${active && !disabled ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--b1)'}`,
                               background: active && !disabled ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
                               color: disabled ? 'var(--t4)' : active ? 'var(--primary)' : 'var(--t3)',
-                              fontSize:11, cursor: disabled ? 'default' : 'pointer',
+                              fontSize:11,
+                              cursor: disabled ? 'not-allowed' : 'pointer',
                               fontFamily:'Roboto,sans-serif', fontWeight:w,
-                              opacity: disabled ? 0.35 : partial ? 0.72 : 1,
+                              // Opacity alone is not the primary signal — the footer notes
+                              // carry the explanation. Opacity just reinforces the state.
+                              opacity: disabled ? 0.45 : partial ? 0.85 : 1,
                               position:'relative',
                             }}>
-                            {w}{partial && <span style={{ fontSize:8, color:'#f59e0b', marginLeft:1, verticalAlign:'super' }}>*</span>}
+                            {w}
+                            {/* aria-hidden: the * is decorative; aria-label carries the meaning */}
+                            {partial && <span aria-hidden="true" style={{ fontSize:8, color:'#f59e0b', marginLeft:1, verticalAlign:'super' }}>*</span>}
                           </button>
                         );
                       })}
                     </div>
-                    {hasPartial && (
-                      <p style={{ fontSize:9, color:'var(--t4)', marginTop:5, lineHeight:1.4 }}>
-                        * Not supported by all selected fonts — renders at nearest available weight
-                      </p>
+                    {/* Per-weight notes — specific, always visible, no hover or tooltip needed.
+                        Each line names the blocking font(s) so the user knows exactly what to do. */}
+                    {restricted.length > 0 && (
+                      <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:2 }}>
+                        {restricted.map(({ weight:w, status, blockingFonts }) => {
+                          const names = blockingFonts.join(', ');
+                          return (
+                            <p key={w} style={{ fontSize:9, color:'var(--t4)', lineHeight:1.45, margin:0 }}>
+                              {status === 'none'
+                                ? <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}</strong> — not supported by {names}</>
+                                : <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}*</strong> — {names} will use nearest weight</>
+                              }
+                            </p>
+                          );
+                        })}
+                      </div>
                     )}
                   </>
                 );
