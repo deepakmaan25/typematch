@@ -50,12 +50,14 @@ function buildCatalogue(font) {
 }
 
 // Build a Google Fonts API URL for the given font.
-// Uses weights from the canonical schema (font.weights[]) when available;
-// falls back to 400;700 — universally supported by every GF font.
+// Uses weights from the canonical schema (font.weights[]) when available.
+// Fallback requests all four weights the UI weight-buttons expose (300, 400,
+// 500, 700) so the controls are always backed by real font data. GF returns
+// whatever subset the font actually supports — requesting extras is harmless.
 function buildGFUrl(name, font) {
-  const raw     = Array.isArray(font?.weights) && font.weights.length > 0 ? font.weights : [400, 700];
+  const raw     = Array.isArray(font?.weights) && font.weights.length > 0 ? font.weights : [300, 400, 500, 700];
   const valid   = raw.filter(w => [100,200,300,400,500,600,700,800,900].includes(w));
-  const weights = [...new Set(valid.length > 0 ? valid : [400, 700])].sort((a,b) => a-b);
+  const weights = [...new Set(valid.length > 0 ? valid : [300, 400, 500, 700])].sort((a,b) => a-b);
   return `https://fonts.googleapis.com/css2?family=${name.replace(/ /g,'+')}:wght@${weights.join(';')}&display=swap`;
 }
 
@@ -147,8 +149,18 @@ function PreviewLab({ initialFont }) {
   });
 
   // Trigger an async font load and update fontStatus when it settles.
-  // Safe to call multiple times for the same font (loadFont is idempotent).
+  // Safe to call multiple times — loadFont is idempotent for the normal path.
+  //
+  // Retry path: if the font previously failed, its <link> is still in the DOM
+  // but in an error state (link.sheet === null permanently). A new `load`
+  // listener on a dead link never fires; the Promise would just time out at 12s.
+  // We remove the stale link first so loadFont() creates a fresh stylesheet
+  // request from scratch.
   function loadFontAndTrack(name, font) {
+    if (fontStatus[name] === 'failed') {
+      const staleId = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
+      document.getElementById(staleId)?.remove();
+    }
     setFontStatus(prev => {
       if (prev[name] === 'loaded') return prev;
       return { ...prev, [name]: 'loading' };
@@ -413,6 +425,7 @@ function PreviewCard({ font, template, text, fontSize, fontWeight, lineHeight, l
           <Icon name="font_download_off" size={32} style={{ color:'var(--t4)' }} />
           <span style={{ fontSize:13, fontWeight:500, color:'var(--t2)' }}>Preview unavailable</span>
           <span style={{ fontSize:11, color:'var(--t4)' }}>{font.name} could not be loaded from Google Fonts</span>
+          <span style={{ fontSize:10, color:'var(--t4)', marginTop:4, opacity:.7 }}>Toggle the font in the sidebar to retry</span>
         </div>
       </div>
     );
