@@ -11,36 +11,35 @@ const PREVIEW_TEMPLATES = [
   { id:'ui',        label:'UI interface',    icon:'web_asset' },
 ];
 
+// Fonts guaranteed loaded at app start (pre-loaded in TypeMatch.html <head>).
+// These never need injection — resolve immediately in loadFont().
+const PRELOADED_FONT_NAMES = new Set([
+  'Playfair Display', 'DM Sans', 'Fraunces', 'Space Grotesk',
+  'Cormorant Garamond', 'Syne', 'Libre Baskerville', 'DM Serif Display', 'Inter',
+]);
+
 // Base catalogue — always available (pre-loaded in HTML head via Google Fonts)
 const ALL_PREVIEW_FONTS = [
-  { name:'Playfair Display', family:"'Playfair Display',serif",       type:'Serif' },
-  { name:'DM Sans',          family:"'DM Sans',sans-serif",           type:'Sans' },
-  { name:'Fraunces',         family:"'Fraunces',serif",               type:'Serif' },
-  { name:'Space Grotesk',    family:"'Space Grotesk',sans-serif",     type:'Sans' },
-  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",    type:'Serif' },
-  { name:'Syne',             family:"'Syne',sans-serif",              type:'Display' },
+  { name:'Playfair Display',  family:"'Playfair Display',serif",    type:'Serif' },
+  { name:'DM Sans',           family:"'DM Sans',sans-serif",        type:'Sans' },
+  { name:'Fraunces',          family:"'Fraunces',serif",            type:'Serif' },
+  { name:'Space Grotesk',     family:"'Space Grotesk',sans-serif",  type:'Sans' },
+  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",  type:'Serif' },
+  { name:'Syne',              family:"'Syne',sans-serif",           type:'Display' },
 ];
 
-// Convert a results/inspector font object → preview catalogue entry
+// Convert a results/inspector font object → preview catalogue entry.
+// Preserves `loaded` and `weights` from the canonical schema so the loader
+// can skip injection for pre-verified fonts and request the right weights.
 function toPreviewEntry(font) {
   return {
-    name: font.name,
-    // Results fonts carry fontFamily as a CSS string; fall back to a safe default
-    family: font.fontFamily || `'${font.name}', sans-serif`,
-    type: font.classification || 'Custom',
-    injected: true,   // mark so the sidebar can show a visual hint
+    name:     font.name,
+    family:   font.fontFamily || `'${font.name}', sans-serif`,
+    type:     font.classification || 'Custom',
+    injected: true,
+    loaded:   font.loaded  || false,
+    weights:  font.weights || null,
   };
-}
-
-// Ensure a Google Font is loaded; safe to call repeatedly (idempotent)
-function ensureFontLoaded(name) {
-  const id = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id   = id;
-  link.rel  = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${name.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
-  document.head.appendChild(link);
 }
 
 // Build the initial working catalogue: base + injected font if not already present
@@ -50,43 +49,158 @@ function buildCatalogue(font) {
   return [toPreviewEntry(font), ...ALL_PREVIEW_FONTS];
 }
 
+// Build a Google Fonts API URL for the given font.
+// Uses weights from the canonical schema (font.weights[]) when available;
+// falls back to 400;700 — universally supported by every GF font.
+function buildGFUrl(name, font) {
+  const raw     = Array.isArray(font?.weights) && font.weights.length > 0 ? font.weights : [400, 700];
+  const valid   = raw.filter(w => [100,200,300,400,500,600,700,800,900].includes(w));
+  const weights = [...new Set(valid.length > 0 ? valid : [400, 700])].sort((a,b) => a-b);
+  return `https://fonts.googleapis.com/css2?family=${name.replace(/ /g,'+')}:wght@${weights.join(';')}&display=swap`;
+}
+
+// Async font loader — the single source of truth for getting a font ready to paint.
+//
+// Returns a Promise that:
+//   resolves — font is in the browser FontFaceSet and ready to use
+//   rejects  — network error, font not in GF catalog, or 12s timeout
+//
+// Strategy:
+//   1. Pre-loaded fonts (PRELOADED_FONT_NAMES or font.loaded === true) → resolve instantly
+//   2. Already in FontFaceSet (loaded earlier this session) → resolve instantly
+//   3. Otherwise: inject GF stylesheet → wait for CSS parse → verify via Font Loading API
+//
+// Idempotent: calling it N times for the same font is safe.
+function loadFont(name, font) {
+  // Already guaranteed available — no network needed
+  if (PRELOADED_FONT_NAMES.has(name) || font?.loaded === true) {
+    return Promise.resolve();
+  }
+
+  const fontSpec = `400 1em "${name}"`;
+
+  // Already in the browser's FontFaceSet (e.g., loaded earlier this session)
+  if (document.fonts.check(fontSpec)) return Promise.resolve();
+
+  const id = `gf-inject-${name.replace(/\s+/g, '-').toLowerCase()}`;
+  let link = document.getElementById(id);
+
+  if (!link) {
+    link = document.createElement('link');
+    link.id   = id;
+    link.rel  = 'stylesheet';
+    link.href = buildGFUrl(name, font);
+    document.head.appendChild(link);
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`Font load timeout: ${name}`)),
+      12000
+    );
+
+    const afterStylesheet = () => {
+      // Font Loading API: resolves with matching FontFace objects once the
+      // font file is downloaded. Empty array = font not found in the CSS.
+      document.fonts.load(fontSpec)
+        .then(faces => {
+          clearTimeout(timeout);
+          if (faces && faces.length > 0) resolve();
+          else reject(new Error(`Font not available in Google Fonts: ${name}`));
+        })
+        .catch(err => { clearTimeout(timeout); reject(err); });
+    };
+
+    // link.sheet is non-null once the browser has parsed the CSS.
+    // If it's already parsed (link injected by a prior call), go immediately;
+    // otherwise wait for the load event.
+    if (link.sheet != null) {
+      afterStylesheet();
+    } else {
+      link.addEventListener('load',  afterStylesheet, { once: true });
+      link.addEventListener('error', () => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to fetch font stylesheet: ${name}`));
+      }, { once: true });
+    }
+  });
+}
+
 function PreviewLab({ initialFont }) {
-  // fontCatalogue = base list + any fonts injected from Results / Inspector.
-  // Stored in state so new injections trigger a re-render of the sidebar.
   const [fontCatalogue, setFontCatalogue] = useState(() => buildCatalogue(initialFont));
 
   const [selectedFonts, setSelectedFonts] = useState(() => {
     if (!initialFont?.name) return ['Playfair Display', 'DM Sans'];
-    // initialFont is guaranteed to be in the catalogue we just built
     return [initialFont.name];
   });
 
-  // When initialFont changes (user opens a different font in Preview from the
-  // Inspector), inject the font if missing and auto-select it immediately.
+  // Per-font load status: 'loaded' | 'loading' | 'failed'
+  // Pre-loaded fonts start as 'loaded'. Injected fonts start as 'loading'.
+  const [fontStatus, setFontStatus] = useState(() => {
+    const s = {};
+    PRELOADED_FONT_NAMES.forEach(n => { s[n] = 'loaded'; });
+    if (initialFont?.name) {
+      const ready = PRELOADED_FONT_NAMES.has(initialFont.name) || initialFont.loaded === true;
+      s[initialFont.name] = ready ? 'loaded' : 'loading';
+    }
+    return s;
+  });
+
+  // Trigger an async font load and update fontStatus when it settles.
+  // Safe to call multiple times for the same font (loadFont is idempotent).
+  function loadFontAndTrack(name, font) {
+    setFontStatus(prev => {
+      if (prev[name] === 'loaded') return prev;
+      return { ...prev, [name]: 'loading' };
+    });
+    loadFont(name, font)
+      .then(() => setFontStatus(prev => ({ ...prev, [name]: 'loaded' })))
+      .catch(() => setFontStatus(prev => ({ ...prev, [name]: 'failed' })));
+  }
+
+  // When initialFont changes: inject into catalogue, load it, auto-select.
   useEffect(() => {
     if (!initialFont?.name) return;
     const name = initialFont.name;
     setFontCatalogue(prev => {
       if (prev.some(f => f.name === name)) return prev;
-      ensureFontLoaded(name);
       return [toPreviewEntry(initialFont), ...prev];
     });
+    if (fontStatus[name] !== 'loaded') {
+      loadFontAndTrack(name, initialFont);
+    }
     setSelectedFonts([name]);
-  }, [initialFont?.name]);
-  const [template,     setTemplate]     = useState('article');
-  const [darkBg,       setDarkBg]       = useState(false);
-  const [fontSize,     setFontSize]     = useState(48);
-  const [fontWeight,   setFontWeight]   = useState(700);
-  const [lineHeight,   setLineHeight]   = useState(120);
-  const [letterSpacing,setLetterSpacing]= useState(0);
-  const [customText,   setCustomText]   = useState('The craft of beautiful typography starts here.');
-  const [saved,        setSaved]        = useState([]);
-  const [showSaved,    setShowSaved]    = useState(false);
+  }, [initialFont?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On mount: start loading initialFont if it's not from the pre-loaded set.
+  useEffect(() => {
+    if (!initialFont?.name) return;
+    if (!PRELOADED_FONT_NAMES.has(initialFont.name) && initialFont.loaded !== true) {
+      loadFontAndTrack(initialFont.name, initialFont);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [template,      setTemplate]      = useState('article');
+  const [darkBg,        setDarkBg]        = useState(false);
+  const [fontSize,      setFontSize]      = useState(48);
+  const [fontWeight,    setFontWeight]    = useState(700);
+  const [lineHeight,    setLineHeight]    = useState(120);
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [customText,    setCustomText]    = useState('The craft of beautiful typography starts here.');
+  const [saved,         setSaved]         = useState([]);
+  const [showSaved,     setShowSaved]     = useState(false);
 
   function toggleFont(name) {
+    const status = fontStatus[name];
+    // Kick off loading when font has never been attempted or previously failed.
+    // A failed font can be retried by toggling it again.
+    if (status !== 'loaded' && status !== 'loading') {
+      const fontData = fontCatalogue.find(f => f.name === name);
+      loadFontAndTrack(name, fontData);
+    }
     setSelectedFonts(prev => prev.includes(name)
-      ? prev.filter(n=>n!==name)
-      : prev.length < 3 ? [...prev,name] : [prev[1],prev[2]||name,name].slice(-3));
+      ? prev.filter(n => n !== name)
+      : prev.length < 3 ? [...prev, name] : [prev[1], prev[2] || name, name].slice(-3));
   }
 
   function saveComparison() {
@@ -95,10 +209,10 @@ function PreviewLab({ initialFont }) {
 
   // Canvas-level bg/text colors — controlled by the darkBg canvas toggle,
   // independent of the app shell theme. UI chrome uses CSS custom properties.
-  const bgColor   = darkBg ? '#0f0f16'              : '#ffffff';
+  const bgColor   = darkBg ? '#0f0f16'               : '#ffffff';
   const textColor = darkBg ? 'rgba(255,255,255,0.92)' : '#111118';
   const subColor  = darkBg ? 'rgba(255,255,255,0.45)' : '#666680';
-  const cardBg    = darkBg ? '#1a1a26'              : '#f5f5f8';
+  const cardBg    = darkBg ? '#1a1a26'               : '#f5f5f8';
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
@@ -131,7 +245,13 @@ function PreviewLab({ initialFont }) {
             <p style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:10 }}>Fonts (up to 3)</p>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {fontCatalogue.map(f => {
-                const sel = selectedFonts.includes(f.name);
+                const sel    = selectedFonts.includes(f.name);
+                const status = fontStatus[f.name] || 'loaded';
+                // Status dot color: failed=red, loading=amber, selected=primary, idle=muted
+                const dotColor = status === 'failed'  ? 'var(--error, #d32f2f)'
+                               : status === 'loading' ? '#f59e0b'
+                               : sel                  ? 'var(--primary)'
+                               :                        'var(--t4)';
                 return (
                   <button key={f.name} onClick={()=>toggleFont(f.name)}
                     style={{
@@ -139,13 +259,16 @@ function PreviewLab({ initialFont }) {
                       border:`1px solid ${sel ? 'color-mix(in srgb, var(--primary) 40%, transparent)' : 'var(--b1)'}`,
                       background: sel ? 'color-mix(in srgb, var(--primary) 9%, transparent)' : 'transparent',
                       cursor:'pointer', transition:'all 0.15s', color:'inherit',
+                      opacity: status === 'failed' ? 0.65 : 1,
                     }}>
-                    <div style={{ width:8, height:8, borderRadius:'50%', background: sel ? 'var(--primary)' : 'var(--t4)', flexShrink:0 }} />
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:dotColor, flexShrink:0 }} />
                     <div style={{ flex:1, textAlign:'left' }}>
                       <div style={{ fontSize:12, color: sel ? 'var(--t1)' : 'var(--t2)', fontWeight: sel ? 500 : 400 }}>{f.name}</div>
                       <div style={{ fontSize:10, color:'var(--t4)' }}>
                         {f.type}
-                        {f.injected && <span style={{ marginLeft:5, color:'var(--primary)', opacity:.7 }}>· from results</span>}
+                        {f.injected && status !== 'failed' && <span style={{ marginLeft:5, color:'var(--primary)', opacity:.7 }}>· from results</span>}
+                        {status === 'loading' && <span style={{ marginLeft:5, color:'#f59e0b' }}>· loading…</span>}
+                        {status === 'failed'  && <span style={{ marginLeft:5, color:'var(--error, #d32f2f)' }}>· unavailable</span>}
                       </div>
                     </div>
                   </button>
@@ -222,6 +345,7 @@ function PreviewLab({ initialFont }) {
                     textColor={textColor}
                     subColor={subColor}
                     cardBg={cardBg}
+                    loadStatus={fontStatus[fontName] || 'loaded'}
                   />
                 );
               })}
@@ -253,7 +377,48 @@ function PreviewLab({ initialFont }) {
   );
 }
 
-function PreviewCard({ font, template, text, fontSize, fontWeight, lineHeight, letterSpacing, darkBg, bgColor, textColor, subColor, cardBg }) {
+function PreviewCard({ font, template, text, fontSize, fontWeight, lineHeight, letterSpacing, darkBg, bgColor, textColor, subColor, cardBg, loadStatus }) {
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  // Render a skeleton instead of a fallback-font canvas. This prevents the
+  // UI from silently showing system-ui while the real font downloads.
+  if (loadStatus === 'loading') {
+    return (
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'8px 14px', background:'var(--s2)', borderRadius:'8px 8px 0 0', border:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8, borderBottom:'none' }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:'#f59e0b' }} />
+          <span style={{ fontSize:12, fontWeight:500, color:'var(--t2)' }}>{font.name}</span>
+          <Badge label="Loading…" color="neutral" />
+        </div>
+        <div style={{ border:'1px solid var(--b1)', borderRadius:'0 0 8px 8px', background:bgColor, minHeight:240, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+          <Icon name="hourglass_top" size={28} style={{ color:'var(--t4)' }} />
+          <span style={{ fontSize:12, color:'var(--t4)' }}>Loading font…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Failed state ───────────────────────────────────────────────────────────
+  // Show an honest error: don't pretend the font applied when it didn't.
+  // The user can retry by de-selecting and re-selecting the font in the sidebar.
+  if (loadStatus === 'failed') {
+    return (
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'8px 14px', background:'var(--s2)', borderRadius:'8px 8px 0 0', border:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8, borderBottom:'none' }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--error, #d32f2f)' }} />
+          <span style={{ fontSize:12, fontWeight:500, color:'var(--t2)' }}>{font.name}</span>
+          <Badge label="Unavailable" color="neutral" />
+        </div>
+        <div style={{ border:'1px solid var(--b1)', borderRadius:'0 0 8px 8px', background:bgColor, minHeight:240, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:8, padding:24, textAlign:'center' }}>
+          <Icon name="font_download_off" size={32} style={{ color:'var(--t4)' }} />
+          <span style={{ fontSize:13, fontWeight:500, color:'var(--t2)' }}>Preview unavailable</span>
+          <span style={{ fontSize:11, color:'var(--t4)' }}>{font.name} could not be loaded from Google Fonts</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loaded — normal render ─────────────────────────────────────────────────
   const ff = font.family;
   const mainStyle = { fontFamily:ff, fontSize, fontWeight, lineHeight, letterSpacing:`${letterSpacing}em`, color:textColor, wordBreak:'break-word', textWrap:'pretty' };
   const headlineText = text || 'Typography is a craft worth mastering.';
