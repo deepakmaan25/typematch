@@ -54,7 +54,7 @@ function Onboarding({ onComplete }) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, width:'100%', marginTop:8 }}>
         {[
           { icon:'library_books', label:'Your collection',     color:'var(--purple)',  bg:'var(--purple-dim)' },
-          { icon:'auto_awesome',  label:'AI + Web knowledge', color:'var(--teal)',    bg:'var(--teal-dim)' },
+          { icon:'auto_awesome',  label:'Library suggestions', color:'var(--teal)',    bg:'var(--teal-dim)' },
           { icon:'visibility',    label:'Rich previews',      color:'var(--primary)', bg:'var(--primary-dim)' },
         ].map((f,i) => (
           <div key={f.label} className="fade-up" style={{ animationDelay:`${.15+i*.08}s`, padding:'18px 12px', background:f.bg, border:`1px solid color-mix(in srgb,${f.color} 22%,transparent)`, borderRadius:'var(--r-lg)', display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
@@ -208,7 +208,7 @@ function Onboarding({ onComplete }) {
       <div>
         <h2 style={{ fontFamily:'var(--font-display)', fontSize:32, fontWeight:700, color:'var(--t1)', letterSpacing:'-0.02em', marginBottom:12 }}>You're all set!</h2>
         <p style={{ fontSize:14, color:'var(--t2)', lineHeight:1.7 }}>
-          Your collection is ready. TypeMatch will now use your preferences and fonts to generate intelligent recommendations.
+          Your collection is ready. TypeMatch will now use your preferences and fonts to score and rank recommendations.
         </p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, width:'100%' }}>
@@ -218,7 +218,7 @@ function Onboarding({ onComplete }) {
         </div>
         <div style={{ padding:'16px 12px', background:'var(--teal-dim)', border:'1px solid color-mix(in srgb,var(--teal) 22%,transparent)', borderRadius:'var(--r-lg)', textAlign:'center' }}>
           <div style={{ fontSize:24, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Ready</div>
-          <div style={{ fontSize:11, color:'var(--t3)' }}>AI + Web active</div>
+          <div style={{ fontSize:11, color:'var(--t3)' }}>Library scoring active</div>
         </div>
       </div>
       <div style={{ display:'flex', gap:12, marginTop:8 }}>
