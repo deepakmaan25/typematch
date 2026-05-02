@@ -39,8 +39,9 @@ typography-generator/project/   ← Vercel root directory
 **Deploy:** `git push origin main` from `C:/Users/dipum/Downloads/TypeScale Generator`. Vercel auto-deploys in ~15s.
 
 ## Important rules
+- Follow `roadmap.md` for sequencing — it is the single source of truth. Do not act on the legacy Phase-4-polish plan; see the Roadmap transition note at the top of `roadmap.md`.
 - Do not introduce a build step or npm dependencies without a clear reason
-- Do not add a backend until localStorage persistence is genuinely insufficient  
+- A backend (Supabase/Firebase) is planned for Phase 3 of the new roadmap — do not add one ad-hoc; follow the phase order
 - Do not change the global component mounting pattern (`window.X = Component`) without migrating all consumers
-- The "AI" scoring in `tm-recommend.jsx` is a **local algorithm** — do not describe it as a live AI call
-- `tm-data.jsx` is the only font data source — all catalogue changes go there
+- The "AI" scoring in `tm-recommend.jsx` is a **local algorithm** — do not describe it as a live AI call. Phase 1 work is to replace the "AI" UI copy with honest structured-scoring language.
+- `tm-data.jsx` is the canonical font catalog **until Phase 1 ships Google Fonts ingestion**. After that, treat it as a curated seed/override over the live catalog.

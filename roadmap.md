@@ -1,223 +1,395 @@
 # TypeMatch — Product Roadmap
 
-> Last updated: 2026-04-28  
+> Last updated: 2026-04-29
 > Status: v1 deployed at https://typematch-mu.vercel.app
+> Source of truth: this file. If anything outside this file disagrees with this roadmap, this file wins.
 
 ---
 
-## Product Vision
+## Roadmap transition note (2026-04-29)
 
-TypeMatch is a **professional typography selector** for designers and developers who take typeface decisions seriously. It is not a font browser. It is a decision-support tool that scores, pairs, previews, and manages typefaces against the real context of a project.
+The roadmap direction has changed. The previous plan focused on **Phase 4 polish** (Brief-as-home, token consolidation, completing preview templates, ⌘K palette, score-weight tuning, mobile bottom-sheet). That plan has been superseded.
 
-The end state: TypeMatch feels like a calm, opinionated design tool — the typography equivalent of a brand standards kit — that helps practitioners make faster, better-justified typeface decisions without relying on gut feel or trend-chasing.
+The new plan shifts toward **font data, richer schema, recommendation quality, ingestion, persistence, and pairing workflows** — turning TypeMatch from a polished prototype into a credible recommendation product. The basis for this rewrite is `typematch-next-level-roadmap.md` (external proposal, now reconciled into this file). That external doc is no longer treated as a parallel roadmap; this file is the single source of truth.
 
----
-
-## North Star
-
-> A designer can describe their project in plain terms, see a ranked list of typefaces scored against that brief from their own library and beyond, inspect the reasoning, pair them, and preview the result in real context — all in one session without switching tools.
+Future work must follow the phases below unless this file is explicitly amended again.
 
 ---
 
-## Intended User Value
+## Product intent
 
-| User type | Core value |
-|---|---|
-| Product designers | Find a typeface that fits a SaaS product without guessing |
-| Brand designers | Justify a type recommendation to a client with visible scoring |
-| Developers | Copy font-family strings and license info directly from the tool |
-| Type enthusiasts | Build and curate a personal font library with rich metadata |
+TypeMatch should evolve from a visually polished typography prototype into a credible typography recommendation product with three durable strengths: **broad font access, reliable recommendation logic, and workflow-grade preview/comparison tools**. The product wins through a hybrid model: curated structure for trust, live font delivery for scale, and smarter scoring or embedding-assisted ranking over time.
 
 ---
 
-## Core Product Pillars
+## North star
 
-1. **Brief-driven scoring** — Every recommendation traces back to a project context. No context = no recommendation.
-2. **Library-first** — Your own font collection is always scored first. External suggestions supplement, not replace.
-3. **Show the work** — Scoring dimensions, weights, and reasoning are visible, not black-boxed.
-4. **Real-context preview** — Fonts are shown in realistic editorial/UI/brand templates, not isolated specimen strings.
-5. **Lock and iterate** — Users should be able to pin a font and regenerate companions, not start over every time.
-6. **No dead ends** — Every state (empty, error, zero results) has a clear recovery path.
+A typography recommendation engine that helps a user confidently choose a single typeface, a pairing, or a full type system by combining structured font metadata, high-quality previews, and transparent recommendation logic.
 
 ---
 
-## Architecture Direction
+## Success principles
 
-### Current (v1 — no-build static)
-- Single HTML file (`TypeMatch.html`) as entry point
-- React 18 + Babel standalone (JSX transpiled in-browser — no build step)
-- All components are `window.X = Component` globals loaded via `<script type="text/babel">`
-- All data is hardcoded in `tm-data.jsx` (FONT_COLLECTION array)
-- "AI" scoring is a local algorithmic multi-dimension scorer — **not a live API call**
-- State is in-memory; only theme + rail-collapse state persisted to `localStorage`
-- Deployed as a static site on Vercel
+- Recommendation quality must improve faster than surface polish.
+- Preview quality must show fonts in real contexts, not only isolated specimen text.
+- Pairing support is a core product behavior, not an optional enhancement.
+- Font access should scale through live sources instead of a tiny manually-maintained list.
+- The system should remain explainable; recommendations must say *why* a choice fits.
+- The product should support local fonts and uploaded fonts where browser and licensing constraints allow.
 
-### Architectural ceiling (known limitations)
-- No backend → no user accounts, no cloud sync, no real AI
-- Babel in-browser transpilation → ~1MB overhead, cold start lag on first load
-- No URL routing → deep links and browser back/forward don't work
-- Font library is static (hardcoded) → adding real fonts requires editing `tm-data.jsx`
+---
 
-### Target architecture (Phase 5+, not yet committed)
-- Move to Vite + React build step (removes Babel in-browser overhead)
-- Add a lightweight backend for: user auth, library persistence, real AI brief interpretation
-- Google Fonts API integration to expand the searchable catalogue dynamically
-- URL-based routing (React Router or similar) so views are deep-linkable
+## Non-goals
+
+- Do not start with a heavyweight ML system before structured metadata and scoring are stable.
+- Do not build a proprietary font hosting platform when live APIs solve the immediate problem.
+- Do not treat UI polish as a substitute for recommendation accuracy.
+
+---
+
+## Current gaps
+
+| Gap | Why it matters | Priority |
+|---|---|---|
+| Small font dataset (~30 in `tm-data.jsx`) | Weak suggestions, repeated outputs reduce utility | Critical |
+| Limited metadata | Pairing and ranking logic cannot become intelligent without structured attributes | Critical |
+| No persistence layer | Collections, saved pairings, and history cannot become real product value | Critical |
+| Weak pairing workflow | Users cannot evaluate headline/body or system combinations properly | Critical |
+| Limited font ingestion | Users cannot bring their own fonts into the workflow | High |
+| Low recommendation transparency | "AI" label is misleading; reasoning is hidden | High |
+| Basic preview contexts | Real-world decision confidence remains low | High |
+
+---
+
+## Product pillars
+
+### Font access
+Three sources combined: API-driven web fonts (Google Fonts), local font detection where supported (Local Font Access API), and manual font upload. Google Fonts provides the scalable initial source — fonts via the CSS API, family metadata via the Developer API.
+
+### Structured intelligence
+Every font has normalized metadata so the system can score and rank consistently. Minimum useful fields: family, category, subcategory, mood tags, personality traits, readability profile, contrast profile, x-height proxy, weight range, variable font support, screen suitability, editorial suitability, license confidence.
+
+### Workflow-grade preview
+The preview system shows typography in actual usage contexts: hero headings, product UI, editorial layouts, dashboard cards, mobile surfaces, brand lockups. The Preview Lab supports pairing slots, not isolated single-font comparisons, so users can evaluate hierarchy, harmony, and contrast together.
+
+---
+
+## Architecture direction
+
+### Current (v1 — no-build static, shipped)
+
+- Single HTML file (`TypeMatch.html`) entry point
+- React 18 + Babel standalone (JSX transpiled in-browser, no build step)
+- Components mounted as `window.X = Component` globals via `<script type="text/babel">`
+- All font data hardcoded in `tm-data.jsx`
+- "AI" scoring is a local algorithmic multi-dimension scorer in `tm-recommend.jsx` — not a live API call
+- Only theme + rail-collapse persist to `localStorage`
+- Static deployment on Vercel (root: `typography-generator/project/`)
+
+### Phase model
+
+Build as a hybrid system: structured rules first, smarter ranking later, embeddings only after data quality is stable.
+
+| Phase | Architecture | What it unlocks |
+|---|---|---|
+| Phase 1 | Curated dataset + Google Fonts ingestion + scoring rules | Fast improvement, explainability, broader catalog |
+| Phase 2 | Weighted scoring + curated pairing cache | Trustworthy recommendations at scale |
+| Phase 3 | Backend persistence (Supabase/Firebase) for collections + pairings | Real user value and repeat usage |
+| Phase 4 | Local Font Access + embedding-assisted ranking | Adaptive relevance, deeper ingestion |
+
+### Recommended stack
+
+- Frontend: existing no-build static stack with theme tokens and dynamic font loading.
+- Font source: Google Fonts CSS API + Developer API for initial scale.
+- Local font access: Local Font Access API where supported, with graceful fallback.
+- Upload path: client-side .ttf/.otf/.woff/.woff2 validation; server-backed persistence in Phase 3.
+- Backend: Supabase or Firebase for auth, collections, saved pairings, recommendation history, preferences.
+- Search/index: normalized font metadata + pairing scores.
+- Future intelligence: embedding vectors and ranking models (Phase 4).
 
 ### Architecture decision rules
-- **Do not introduce a build step until the product logic is stable.** The no-build approach allows rapid iteration.
-- **Do not add a backend until localStorage is genuinely insufficient.** Prove the product works first.
-- **Do not fragment the component model.** All components stay as `window.X` globals until a proper module system is introduced.
-- **`tm-data.jsx` is the single source of truth for font data** until a dynamic API replaces it.
+
+- The no-build static stack stays until product logic justifies a build step. A build step (Vite) is no longer phase-blocking; introduce when the cold-start cost or DX cost outweighs the simplicity benefit.
+- A backend is now on the plan (Phase 3). Do not add it ad-hoc — follow the phase order. Until Phase 3 ships, persist to `localStorage`.
+- Component model stays as `window.X` globals until a proper module system is justified by the work in flight.
+- `tm-data.jsx` is the canonical font catalog **until Phase 1 ships Google Fonts ingestion**, after which the catalog becomes a normalized, partially-cached dataset and `tm-data.jsx` becomes a curated seed/override.
 
 ---
 
-## Phased Roadmap
+## Data model
 
-### ✅ Phase 1 — Foundation cleanup (complete)
-- Button hierarchy (sentence case, ripple confined to primary)
-- Reduced-motion support (`prefers-reduced-motion`)
-- Focus-visible accessibility
-- Design token system (CSS custom properties for all surfaces, text, borders, brand)
-- Motion token system (MD3-inspired easing + duration scale)
-- Light + dark theme with no-flash init
+### Core entities
 
-### ✅ Phase 2 — Shell + structure (complete)
-- Persistent app shell with collapsible left rail (54px icon ↔ 200px labelled)
-- Rail state persisted to `localStorage`
-- Nav labels aligned to IA: Brief / Pairings / Preview / Library
-- Reusable `Inspector` primitive (right drawer, ESC, focus trap, focus return)
-- Inspector state lifted to App shell (`inspectorTarget`)
-- `DetailPanel` embedded in Inspector with 8-dimension score breakdown
+User · Collection · Font · FontSource · Pairing · RecommendationRun · SavedComparison · PreviewPreset
 
-### ✅ Phase 3 — Differentiators (partially complete)
-**Done:**
-- Inspector tabs (Overview / Score / License / Pairing) with roving arrow-key focus
-- Results hardened: card-shaped loading skeletons, explicit empty state, recoverable error + Retry
-- Article preview template (kicker · headline · byline · deck · 2-col body · pull-quote)
-- Preview view wired into shell with font-context fallback chain
-- Dynamic font injection: any Results font is injected into PreviewLab catalogue on demand
-- Google Fonts link injected for unlisted fonts (`ensureFontLoaded`)
-- Hero/landing redesign: editorial specimen card, fixed CTA logic, "See sample results" scroll
-- Full dark/light mode parity across all PreviewLab UI chrome
+### Font schema (target shape — Phase 1)
 
-**Deferred to Phase 4:**
-- Compare mode (side-by-side font comparison tray)
-- Lock-and-regenerate (pin a font, regenerate pairing candidates)
-- Command palette (`⌘K`)
-- Score-weight tuning UI (user-adjustable dimension weights)
-- Remaining preview templates: Hero, Editorial, Dashboard, Pricing, Mobile (redesigned)
-- Inspector mobile bottom-sheet variant
-- Brief-as-home default route (approved but not shipped — Home dashboard preserved)
-- Token consolidation (remove unused purple/teal chrome accents)
+```json
+{
+  "id": "font_001",
+  "family": "Inter",
+  "source": "google-fonts",
+  "category": "sans-serif",
+  "subcategory": "neo-grotesk",
+  "mood": ["neutral", "modern", "precise"],
+  "personality": ["clean", "trustworthy", "systematic"],
+  "readability": 92,
+  "screenSuitability": 96,
+  "editorialSuitability": 70,
+  "contrastStyle": "low",
+  "xHeight": "high",
+  "weightMin": 100,
+  "weightMax": 900,
+  "variable": true,
+  "languageSupport": ["latin"],
+  "license": "OFL",
+  "licenseConfidence": "high",
+  "tags": ["ui", "product", "dashboard"]
+}
+```
 
-### 🔲 Phase 4 — Polish + completeness
-- Brief-as-home route swap (remove home dashboard, Brief becomes the entry point)
-- Complete preview template suite (all 7 templates production-quality)
-- Compare mode
-- Lock-and-regenerate
-- Command palette shell (`⌘K`)
-- Score-weight tuning
-- Inspector mobile bottom-sheet
-- Token consolidation
-- Full accessibility audit (WCAG 2.1 AA)
-- Edge-case hardening (offline, font load failure, overlong brief, mobile)
-- QA pass across all views
+### Pairing schema (target shape — Phase 2)
 
-### 🔲 Phase 5 — Real intelligence
-- Replace local scoring algorithm with Claude API brief interpretation
-- Natural language brief → structured scoring weights
-- Explain-scoring mode ("why this font for my brief")
-- Vite build step migration (remove Babel standalone overhead)
-- URL-based routing
-
-### 🔲 Phase 6 — Platform
-- User accounts + library cloud sync
-- Google Fonts API dynamic catalogue
-- Font import from URL
-- Share / export pairing as code snippet or PDF
-- Team library support
+```json
+{
+  "id": "pair_001",
+  "headingFontId": "font_010",
+  "bodyFontId": "font_001",
+  "context": ["editorial", "branding"],
+  "contrastScore": 84,
+  "harmonyScore": 78,
+  "readabilityScore": 88,
+  "distinctivenessScore": 73,
+  "overallScore": 83,
+  "explainability": [
+    "High contrast between display serif and neutral sans",
+    "Body face maintains screen readability",
+    "Suitable for premium editorial brand systems"
+  ]
+}
+```
 
 ---
 
-## In Scope (v1)
+## Recommendation engine roadmap
 
-- Single-user, in-browser typography workflow
-- Brief → Score → Inspect → Preview → Pair
-- Static font catalogue (hardcoded, curated)
-- Local algorithmic scoring
-- Dark + light mode
-- Google Fonts only (no local font upload)
-- Static deployment (no backend)
+### Stage 1 — rule-based + curated logic (Phase 1–2)
 
-## Out of Scope (v1)
+Deterministic rules on metadata: category contrast, mood compatibility, readability thresholds, use-case fit. Suggested weighted formula:
 
-- User accounts or cloud persistence
-- Real AI / Claude API calls
-- Font file upload
-- Custom scoring models
-- Mobile-first layout (desktop-primary, mobile is best-effort)
-- Pricing, paywalls, or tiers
-- Analytics or telemetry
-- CMS or content management
+```text
+overallScore =
+  0.25 * useCaseFit +
+  0.20 * moodFit +
+  0.20 * readability +
+  0.15 * contrastCompatibility +
+  0.10 * personalityMatch +
+  0.05 * popularityOrAdoption +
+  0.05 * licenseConfidence
+```
+
+### Stage 2 — scoring system + curated pair cache (Phase 2)
+
+Precomputed pairing scores for strong defaults so results stay fast and trustworthy.
+
+### Stage 3 — embedding-assisted ranking (Phase 4)
+
+Visual embeddings + lightweight ranking as a **layer on top** of metadata and scoring. Never a replacement for structured logic.
 
 ---
 
-## Decision Rules
+## Font ingestion roadmap
+
+### Source 1 — Google Fonts (Phase 1)
+CSS API for live rendering, Developer API for family metadata. Cache normalized metadata locally so the UI stays fast and scoring doesn't depend on runtime API fetches.
+
+### Source 2 — Local fonts (Phase 4)
+Local Font Access API where available. Permission requested only on user action; clearly explain that local fonts stay on-device unless the user explicitly uploads files.
+
+### Source 3 — Manual upload (Phase 3)
+Support .ttf, .otf, .woff, .woff2. UI validates file type, infers or requests family naming, lets the user enrich metadata after upload.
+
+---
+
+## Preview lab roadmap
+
+The Preview Lab splits into two product modes. **Pairing Studio is the signature feature.**
+
+### Compare Fonts
+- Compare up to 3 single fonts
+- Adjust size, weight, line-height, tracking, case, background
+- View hero, body, editorial, UI, mobile samples
+
+### Pairing Studio (signature)
+- Heading + body pairing
+- UI font + marketing font
+- Brand system mode: display, supporting sans, labels
+- Editorial mode: title, deck, paragraph, caption
+- Swap pair slots instantly
+- Lock one font and explore compatible companions
+- Auto-suggest compatible pairings from rules and scores
+- Save pairings to a shortlist
+
+---
+
+## Backend roadmap (Phase 3)
+
+A backend becomes necessary once the product needs user collections, saved pairings, recommendation history, and persistent preferences. Supabase or Firebase is sufficient — the immediate need is persistence, not heavy infrastructure.
+
+### Initial backend scope
+Auth · User profile · Saved font collection · Uploaded fonts metadata · Saved pairings · Saved recommendation runs · Saved preview presets · Theme preference
+
+---
+
+## UX roadmap
+
+### Immediate UX improvements
+- Make pairing a first-class job in onboarding and navigation.
+- Show recommendation provenance: collection / structured catalog / AI-assisted inference.
+- Replace lorem-style previews with realistic contexts (SaaS hero, editorial masthead, app settings, dashboard KPI card, brand card).
+- Show "why this works" explanations on each recommendation card.
+- Add confidence indicators and tradeoff notes.
+- Replace the "AI" copy throughout the UI with honest structured-scoring language.
+
+### Differentiation
+Most tools stop at font specimens or simplistic pair suggestions. TypeMatch differentiates by treating the decision workflow seriously: contextual previews, explainable ranking, better saved comparisons, better collection intelligence.
+
+---
+
+## Delivery phases
+
+### ✅ Completed (v1, shipped 2026-04-28)
+
+Pre-existing foundation work — kept as historical record, not active priorities:
+
+- Foundation cleanup: button hierarchy, focus-visible, reduced-motion, design tokens, motion tokens, light/dark with no-flash init
+- Shell + structure: collapsible left rail, persistent layout, frozen route IDs, reusable Inspector primitive, DetailPanel with 8-dimension score breakdown
+- Differentiators (partial): Inspector tabs with roving focus, Results loading/empty/error states, Article preview template, dynamic Google Fonts injection in PreviewLab via `ensureFontLoaded`, hero/landing redesign, full dark/light parity
+
+### 🟢 Phase 1 — Foundation (data + schema) — 2–3 weeks · ACTIVE
+
+- Integrate Google Fonts catalog (CSS API + Developer API)
+- Normalize metadata schema (target shape above)
+- Expand dataset substantially beyond the ~30 in `tm-data.jsx`
+- Cache normalized metadata locally; do not fetch at scoring time
+- Refactor recommendation cards to show explainability ("why this works")
+- Replace "AI" copy with structured-scoring language
+
+### 🔲 Phase 2 — Recommendation quality — 2–4 weeks
+
+- Implement weighted scoring engine (formula above)
+- Add curated pairing cache for strong defaults
+- Add use-case presets and filters
+- Add pairing-specific results (not just single-font lists)
+- Add better preview contexts (Compare Fonts mode)
+
+### 🔲 Phase 3 — User value — 2–3 weeks
+
+- Add backend persistence (Supabase or Firebase)
+- Save collections, pairings, recommendation history
+- Add manual font upload support
+- Add shortlist and compare flows
+
+### 🔲 Phase 4 — Advanced ingestion + intelligence — 3–6 weeks
+
+- Add Local Font Access API support
+- Advanced metadata enrichment
+- Precompute pairing scores at scale
+- Explore embedding-assisted ranking
+
+---
+
+## Build order
+
+1. Expand font source via Google Fonts.
+2. Define and normalize the metadata model.
+3. Implement scoring-based recommendations with explainability.
+4. Rebuild Preview Lab into Compare Fonts + Pairing Studio.
+5. Add persistence with Supabase or Firebase.
+6. Add upload and Local Font Access flows.
+7. Add embedding enrichment only after the above is stable.
+
+---
+
+## Decision rules
 
 | Situation | Rule |
 |---|---|
-| Adding a new component | Must use CSS custom property tokens — no hardcoded colors |
-| Adding dark/light support | UI chrome uses `var(--t1/t2/t3/t4)`, `var(--b1/b2)`, `var(--s1-s4)`. Canvas colors use their own toggle. |
-| Changing nav structure | Route `id` values are frozen. Labels can change. IDs cannot — other code references them. |
-| Adding a font to the catalogue | Edit `tm-data.jsx` → `FONT_COLLECTION` array. Match the existing schema exactly. |
+| Choosing what to build next | If it improves recommendation quality, preview quality, or persistence → primary. If only visual polish → secondary. |
+| Considering an ML feature | If the same value can be reached with metadata + scoring first, delay ML. |
+| Adding a font source | If it introduces licensing risk without clear value, avoid it. |
+| Building a preview | If it doesn't simulate a real use case, it's incomplete. |
+| Adding a new component | Must use CSS custom property tokens — no hardcoded chrome colors. |
+| Changing nav structure | Route `id` values are frozen. Labels can change; IDs cannot. |
+| Adding a font to the (current) catalogue | Edit `tm-data.jsx` → `FONT_COLLECTION`. After Phase 1, this becomes seed/override only. |
 | Adding a preview template | Add entry to `PREVIEW_TEMPLATES` in `tm-preview.jsx`. Must implement the `darkBg/bgColor/textColor/subColor` canvas color system. |
-| Shipping a feature | Must have: loading state, empty state, error state. No dead ends. |
+| Shipping a feature | Must have loading, empty, and error states. No dead ends. |
 | Deploying | `git push origin main` — Vercel auto-deploys. Never push broken main. |
 
 ---
 
-## Definition of Done
+## Definition of done
 
 A feature is done when:
 1. It works in both dark and light mode
-2. It has a loading state, empty state, and error/recovery state
+2. It has loading, empty, and error/recovery states
 3. It is keyboard-navigable (focus-visible, no focus traps)
 4. It respects `prefers-reduced-motion`
-5. The audit.md changelog entry is written
+5. The `audit.md` changelog entry is written
 6. It is deployed and verified at the live URL
+7. (For recommendation features) it surfaces an explainability string the user can read
+
+A phase is complete only when:
+- Users can access a broad enough font set to get meaningfully varied results.
+- Recommendation results explain why they exist.
+- Pairing is supported as a complete workflow, not a workaround.
+- Collections and saved decisions persist reliably (from Phase 3 onward).
+- The preview lab supports real contexts and fast comparison.
+- The product still feels premium, clear, and trustworthy.
 
 ---
 
-## Current Priorities (as of 2026-04-28)
+## Risks and mitigations
 
-1. Phase 4 — Brief-as-home route swap (high leverage, approved, unblocked)
-2. Phase 4 — Compare mode skeleton (most-requested differentiator)
-3. Phase 4 — Complete preview template suite
-4. Phase 4 — Token consolidation (remove multi-accent chrome noise)
-5. Phase 5 planning — Claude API brief interpretation (research spike)
-
----
-
-## Risks
-
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Babel in-browser is too slow for users on first load | Medium | High | Migrate to Vite in Phase 5 |
-| Static font catalogue feels stale/limited | High | Medium | Add Google Fonts API in Phase 6; curate catalogue carefully now |
-| "AI" label misleads users (scoring is local, not AI) | Medium | Medium | Rename to "Smart scoring" or "Brief matching" in UI copy |
-| No persistence means users lose work on refresh | High | Medium | Add localStorage persistence for library + saved comparisons in Phase 4 |
-| Mobile experience is broken | High | Low (desktop tool) | Add mobile-specific layouts in Phase 4 polish |
-| `window.X` global pattern causes load-order bugs | Low | High | Maintain strict `<script>` load order in TypeMatch.html |
+| Risk | Impact | Mitigation |
+|---|---|---|
+| API dependency on Google Fonts | Catalog instability, latency | Cache metadata and critical presets locally |
+| Weak metadata quality | Poor recommendation quality | Controlled normalized schema, audit tags |
+| Browser support variance for Local Font Access API | Broken expectations | Feature detection + graceful fallback messaging |
+| Upload licensing ambiguity | Legal/product confusion | Show source + license confidence; require user confirmation |
+| Overbuilding ML too early | Slow delivery, low ROI | Delay embeddings until scoring + data quality stable |
+| Babel in-browser cold start | Slower first load | Tolerate for now; revisit Vite if it becomes blocking |
+| "AI" copy misleads users | Trust issue | Replace with structured-scoring language in Phase 1 |
+| `window.X` global pattern + load-order bugs | Build breakage | Maintain strict `<script>` load order in `TypeMatch.html` |
 
 ---
 
-## Build Order Principles
+## Superseded priorities (from the previous roadmap)
 
-When building new features, follow this sequence:
-1. **Data model first** — define the shape in `tm-data.jsx` or local state
-2. **Component in isolation** — build the component so it works standalone
-3. **Wire to shell** — connect to `tm-app.jsx` state/handlers last
-4. **Harden states** — loading → empty → error before marking done
-5. **Token audit** — replace any hardcoded colors before committing
-6. **Deploy + verify** — push and confirm at live URL
+These were active under the previous Phase-4-polish plan. They are now deferred or reframed under the new direction. They may return, but only after the new Phase 1–3 work justifies them.
+
+| Old priority | New status |
+|---|---|
+| Brief-as-home route swap | Deferred — revisit during Phase 1 UX polish if it accelerates recommendation testing |
+| Token consolidation (drop purple/teal/warm chrome accents) | Deferred — not blocking; pick up opportunistically while editing components |
+| Compare mode skeleton | Reframed — folded into Phase 2 Preview Lab "Compare Fonts" mode |
+| Lock-and-regenerate | Reframed — now part of Phase 2 Pairing Studio |
+| ⌘K command palette | Dropped from active plan |
+| Score-weight tuning UI | Dropped from active plan |
+| Inspector mobile bottom-sheet | Deferred — mobile remains best-effort |
+| Vite migration | Deferred — no longer phase-blocking |
+| Real Claude API for brief interpretation | Deferred — explainable structured scoring first; revisit after Phase 2 |
+| URL-based routing | Deferred — revisit when persistence (Phase 3) makes deep links valuable |
+
+---
+
+## Team working agreement
+
+Before building anything new, ask:
+
+1. Does this improve recommendation quality, preview quality, or persistence?
+2. Does this help TypeMatch become a real decision-support tool?
+3. Is this the simplest version that moves the product toward the north star?
+4. Are we improving the system, or decorating the interface?
+
+If any answer is "no" or "just polish," it does not belong in the active phase.

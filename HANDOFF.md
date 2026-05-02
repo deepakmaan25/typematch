@@ -1,19 +1,27 @@
 # TypeMatch — Handoff / Working Memory
 
-> Last updated: 2026-04-28  
-> Live: https://typematch-mu.vercel.app  
-> Repo: https://github.com/deepakmaan25/typematch  
+> Last updated: 2026-04-29
+> Live: https://typematch-mu.vercel.app
+> Repo: https://github.com/deepakmaan25/typematch
 > Project files: `typography-generator/project/`
+
+---
+
+## ⚠ Roadmap direction has changed (2026-04-29)
+
+The roadmap has been rewritten. The previous plan focused on **Phase 4 polish** (Brief-as-home, token consolidation, completing preview templates, ⌘K palette, score-weight tuning, mobile bottom-sheet). That plan is **superseded**.
+
+The new plan shifts toward **font data, richer schema, recommendation quality, ingestion, persistence, and pairing workflows**. See [roadmap.md](roadmap.md) — that file is the single source of truth. The external `typematch-next-level-roadmap.md` document was reconciled into [roadmap.md](roadmap.md) and is no longer treated as a parallel plan.
 
 ---
 
 ## Where We Are
 
-Phase 3 is functionally complete and the app is deployed to production on Vercel. The core loop — Brief → Results → Inspect → Preview — is working end-to-end. Phase 4 (polish + completeness) has not started.
+The v1 app is deployed and the core loop (Brief → Results → Inspect → Preview) works end-to-end. The legacy "Phase 4 polish" lane is paused. We are now starting **Phase 1 — Foundation (data + schema)** under the new roadmap.
 
 ---
 
-## What Has Been Built
+## What Has Been Built (v1, shipped)
 
 ### Shell & navigation (`tm-app.jsx`)
 - Persistent app shell with collapsible left rail (54px ↔ 200px, persisted to `localStorage`)
@@ -24,82 +32,100 @@ Phase 3 is functionally complete and the app is deployed to production on Vercel
 - Stale inspector cleanup: `useEffect` auto-clears `inspectorTarget` when its font leaves results
 
 ### Components (`tm-components.jsx`)
-- `Btn` — 7 variants (primary/tonal/outlined/ghost/text/destructive/ai), size sm/md/lg, SRI-safe ripple
-- `Inspector` — right drawer with ESC, focus trap (Tab/Shift+Tab), focus return to prior element
-- `Chip`, `Badge`, `RangeSlider`, `Divider`, `Icon`, `EmptyState`, `SectionLabel`
+- `Btn` (7 variants), `Inspector` (ESC, focus trap, focus return), `Chip`, `Badge`, `RangeSlider`, `Divider`, `Icon`, `EmptyState`, `SectionLabel`
 - All components use CSS custom property tokens — no hardcoded colors
 
 ### Brief + Recommendations (`tm-recommend.jsx`)
 - 4-step wizard: project type → collection → preferences → review
 - Local algorithmic multi-dimension scorer (`scoreFont`) across 8 axes
-- Results: `ResultCard` with hover actions, inspector integration
-- `ResultsLoadingSkeleton` — 3 card-shaped placeholders with rotating stage label
-- `RecommendErrorState` — inline recoverable error with Retry (replays last query)
-- Empty state: explicit copy + Refine/Start-over CTAs
-- `DetailPanel` — 4-tab inspector panel (Overview / Score / License / Pairing)
-  - Arrow-key roving focus on tablist
-  - "Open in Pairings" + "Open in Preview" CTAs in Overview and Pairing tabs
+- `ResultCard`, `ResultsLoadingSkeleton`, `RecommendErrorState`, empty state with Refine/Start-over CTAs
+- `DetailPanel` — 4-tab inspector (Overview / Score / License / Pairing) with arrow-key roving focus
 
 ### Preview Lab (`tm-preview.jsx`)
-- 7 templates: Article (default), Hero, Body, Editorial, Brand, Mobile, UI
-- **Dynamic font injection**: any font from Results/Inspector is injected into `fontCatalogue`
-- `toPreviewEntry(font)` — converts Results font shape to catalogue entry
+- 7 templates: Article (production-quality), Hero, Body, Editorial, Brand, Mobile, UI (placeholders)
+- Dynamic font injection: any font from Results/Inspector is added to `fontCatalogue`
 - `ensureFontLoaded(name)` — appends Google Fonts `<link>` idempotently
-- `useEffect` on `initialFont.name` — injects + auto-selects on change
-- Canvas dark/light toggle is **independent** of app shell theme
-- All UI chrome uses CSS custom properties (dark/light parity complete)
+- Canvas dark/light toggle is independent of app shell theme
 
 ### Landing (`tm-landing.jsx`)
-- Editorial specimen card (rotating fonts, Aa alphabet string, pagination dots)
-- Primary CTA: "Start matching" → enters app
-- Secondary CTA: "See sample results" → scrolls to demo strip (no fake "Watch demo")
-- Floating accent badge cards removed
-- Single `<h1>` with quiet category label
+Editorial specimen card, "Start matching" + "See sample results" CTAs.
 
 ### Deployment
-- Static site on Vercel, root directory: `typography-generator/project`
-- `vercel.json`: rewrite `/` → `/TypeMatch.html`, cache-control on HTML/JSX, security headers
-- `TypeMatch.html`: React 18.3.1 production builds with computed SRI hashes
-- Meta tags, OG tags, SVG favicon added
+Static site on Vercel (root: `typography-generator/project`). React 18.3.1 production builds with computed SRI hashes. Auto-deploy on `git push origin main`.
+
+---
+
+## Current Priorities (Phase 1 — Foundation, ACTIVE)
+
+In rough order. Sequence may shift, but **all of these come before any of the deferred items below**.
+
+1. **Define the normalized font schema in code** — match the target shape in [roadmap.md](roadmap.md). Decide where it lives (`tm-data.jsx` extension vs. a dedicated `tm-schema.jsx`).
+2. **Google Fonts ingestion pipeline** — pull family metadata via the Developer API, render via the CSS API. Cache normalized metadata locally; do not fetch at scoring time.
+3. **Catalog expansion** — grow well beyond the ~30 hardcoded fonts in `tm-data.jsx`. Treat the existing entries as a curated seed/override layer.
+4. **Recommendation explainability** — every result card surfaces a "why this works" string. This unblocks the trust problem with the current "AI" label.
+5. **Replace "AI" copy** — UI strings ("Get recommendations · auto_awesome", any "AI" badges) become honest structured-scoring language.
+
+Phase 2 (weighted scoring engine, curated pairing cache, Pairing Studio rebuild) and Phase 3 (Supabase/Firebase backend, uploads) follow. See [roadmap.md](roadmap.md).
+
+---
+
+## Superseded / Deferred Priorities
+
+Previously active under the old Phase-4-polish plan. Do **not** start these without explicit go-ahead.
+
+| Old priority | New status |
+|---|---|
+| Brief-as-home route swap | Deferred — may return during Phase 1 UX polish if it accelerates testing |
+| Token consolidation (purple/teal/warm → primary) | Deferred — opportunistic only, not phase-blocking |
+| Compare mode skeleton | Reframed — folded into Phase 2 Preview Lab "Compare Fonts" mode |
+| Lock-and-regenerate | Reframed — part of Phase 2 Pairing Studio |
+| ⌘K command palette | Dropped from active plan |
+| Score-weight tuning UI | Dropped from active plan |
+| Inspector mobile bottom-sheet | Deferred — mobile stays best-effort |
+| Vite migration | Deferred — no longer phase-blocking |
+| Real Claude API for brief interpretation | Deferred — structured-scoring + explainability first |
+| URL-based routing | Deferred — revisit when Phase 3 persistence makes deep links valuable |
+| localStorage for results/library/comparisons | Subsumed — Phase 3 introduces a real backend instead |
+
+---
+
+## Active Constraints
+
+- **No-build static stack** stays for now (Babel standalone + `window.X` globals). A build step is no longer phase-blocking but also not yet justified.
+- **Backend is on the plan** (Phase 3, Supabase or Firebase). Do not introduce one ad-hoc — follow phase order.
+- **`tm-data.jsx` is the canonical font catalog** until Phase 1 ships Google Fonts ingestion. After that, it becomes a seed/override layer over the live catalog.
+- **Route `id` values are frozen** — labels can change, IDs cannot.
+- **All chrome colors via CSS custom properties** — no hardcoded `rgba()` or hex in component JSX. Canvas preview colors (`darkBg/bgColor/textColor/subColor`) are a separate intentional system.
+- **Definition of Done** still applies (loading + empty + error states, dark + light parity, keyboard nav, reduced-motion, deployed + verified).
 
 ---
 
 ## What Is Working
 
 - Full Brief → Results → Inspector → Preview flow
-- Dark and light mode with correct parity everywhere
+- Dark/light mode parity everywhere
 - Inspector focus management (trap, return, ESC)
-- Preview font injection from results
+- Dynamic Google Fonts injection in PreviewLab
 - Loading, empty, error states on Results
-- Vercel deployment + auto-deploy on `git push`
+- Vercel auto-deploy on `git push`
 
 ---
 
 ## What Is Incomplete / Known Issues
 
-### Deferred Phase 3 features (not started)
-- **Compare mode** — side-by-side font comparison tray
-- **Lock-and-regenerate** — pin one font, regenerate pairing candidates
-- **Command palette** — `⌘K` global shortcut
-- **Score-weight tuning** — user-adjustable dimension weights
-- **Preview templates** — only Article is production-quality; Hero/Body/Editorial/Brand/Mobile/UI are basic placeholders
+### Now-relevant gaps (front-loaded by the new roadmap)
+- Catalog is small (~30 fonts), hardcoded — addressed in Phase 1
+- Metadata is shallow — addressed by the new schema
+- "AI" label is misleading — addressed in Phase 1 copy work
+- Recommendations don't show "why" — addressed in Phase 1
+- Pairing workflow is weak — addressed in Phase 2 (Pairing Studio rebuild)
+- No persistence beyond theme + rail collapse — addressed in Phase 3
 
-### Approved but not shipped
-- **Brief-as-home** — landing was redesigned but the app still shows a Home dashboard on entry after brief completion; Brief-as-home route (Brief as default view) approved but not implemented
-- **Token consolidation** — app still uses purple, teal, warm as chrome accents; should reduce to primary only for chrome, semantics only for score/status
-
-### UX issues still open
-- No URL routing — browser back button does nothing; no deep links
-- No persistence — refreshing loses the current brief, results, and any saved comparisons
-- "AI" label in UI (button reads "Get recommendations · auto_awesome") is misleading — the scorer is local and algorithmic
-- Mobile layout is broken in several views (tool is desktop-primary)
-- Inspector mobile variant (bottom sheet) not built
-
-### Architecture limitations
-- Babel standalone transpiles JSX in-browser — noticeable cold-start lag (~1–2s) on first load
-- `window.X` global component pattern requires strict `<script>` load order in TypeMatch.html
-- Font catalogue is fully hardcoded in `tm-data.jsx` — adding a font requires a code edit
-- No localStorage persistence for library state or saved comparisons (only theme + rail collapse)
+### Still-open issues (lower priority)
+- Hero/Body/Editorial/Brand/Mobile/UI preview templates are basic placeholders (Article is the only production-quality template)
+- No URL routing — back button does nothing, no deep links
+- Mobile layout is broken in several views
+- Babel in-browser cold-start lag (~1–2s)
 
 ---
 
@@ -107,31 +133,38 @@ Phase 3 is functionally complete and the app is deployed to production on Vercel
 
 | Decision | Status |
 |---|---|
-| Brief-as-home as default entry route | Approved, not shipped |
-| Single chrome accent (primary only) | Approved, partially done |
-| Dynamic font injection in PreviewLab | Shipped |
-| No build step until product logic is stable | Active constraint |
-| No backend until localStorage is insufficient | Active constraint |
-| Route `id` values are frozen — labels can change, IDs cannot | Active constraint |
+| Roadmap rewritten around data, schema, ingestion, recommendation quality, persistence, pairing | Active (2026-04-29) |
+| Google Fonts API integration moved to Phase 1 | Active |
+| Backend (Supabase/Firebase) planned for Phase 3 | Active |
+| Font upload + Local Font Access moved into scope (Phase 3 / Phase 4) | Active |
+| Pairing Studio promoted to signature feature | Active |
+| Replace "AI" copy with structured-scoring language | Active |
+| No build step until justified | Active constraint |
+| Route `id` values are frozen | Active constraint |
+| Local-first development — Vercel deploy only at roadmap checkpoints | Active constraint (2026-04-30) |
+| Brief-as-home route swap | Deferred (was approved-not-shipped) |
+| Single chrome accent (primary only) | Deferred (was approved-partial) |
 
----
+## Step 2 migration findings (2026-04-30)
 
-## Immediate Next Steps (Phase 4 start)
+Recorded for Step 3 awareness — no action required now.
 
-1. **Brief-as-home** — remove `HomeView`, make `recommend` the default `appView`, update nav/breadcrumb logic. Medium complexity.
-2. **Token consolidation** — audit all JSX for `var(--purple)`, `var(--teal)`, `var(--warm)` in chrome contexts; replace with `var(--primary)`. Leave semantic uses (score bars, status) intact.
-3. **Preview template suite** — bring Hero, Body, Editorial, Brand templates to the same quality level as Article.
-4. **localStorage persistence** — save current `results`, `collection` selections, and `saved` comparisons to localStorage so a refresh doesn't lose state.
-5. **Compare mode skeleton** — most-wanted differentiator; even a basic 2-font side-by-side panel is a meaningful step.
+| Finding | Impact | Resolution |
+|---|---|---|
+| `source: 'web'` on all `OPEN_FONT_LIBRARY` entries — not in canonical enum | Non-breaking; recommender overrides `source` at results-assembly time | Remap to `'open-library'` in same commit as GF ingestion (Step 3) |
+| `OPEN_FONT_LIBRARY` missing `xHeight`, `weight`, `axes`, `variable`, `personality`, `tags`, etc. | Normalizer backfills generic defaults; scorer null-guards all of these | Populated by GF metadata snapshot in Step 3 |
+| `cssFamily` is borrowed in `OPEN_FONT_LIBRARY` (e.g. IBM Plex Sans renders as Inter) | Pre-existing data issue; fonts visual-proxy to other loaded fonts in Preview Lab | Fixed when `ensureFontLoaded` is wired per-entry in Step 3 |
+| `AI_SUGGESTIONS` carries "AI" framing in variable name and UI copy | Misleading; Phase 1 copy work target | Copy pass in Phase 1 step 5–6 |
 
 ---
 
 ## Blockers / Assumptions
 
-- **No real AI**: The scoring engine is a local algorithm in `scoreFont()` inside `tm-recommend.jsx`. The "AI" label in the UI is a product decision, not an implementation reality. This will be a trust issue with users once the app gets real users.
-- **Font catalogue quality**: The 30-ish fonts in `tm-data.jsx` were manually curated with metadata scores. The scores are author-defined, not empirically validated. This is the biggest data quality risk.
-- **Google Fonts dependency**: All fonts are loaded from Google Fonts CDN. Offline or CDN-down scenarios are unhandled.
-- **No analytics**: There is no visibility into how real users use the app. Prioritisation decisions after public launch should wait until usage data exists.
+- **Google Fonts API key + quota** — Phase 1 needs a Developer API key. Assume one is obtainable; confirm before implementation.
+- **No real AI yet** — until Phase 5+, the scorer remains local and algorithmic. Phase 1 reframes this honestly in UI.
+- **Font metadata quality** — the existing ~30 entries have author-defined scores. Phase 1 must define how new entries get their scores (heuristics from Google Fonts metadata, manual curation, or both).
+- **Backend choice** — Supabase vs. Firebase is unresolved. Decide before Phase 3 starts.
+- **No analytics** — usage data still doesn't exist; prioritization remains qualitative.
 
 ---
 
@@ -139,11 +172,13 @@ Phase 3 is functionally complete and the app is deployed to production on Vercel
 
 | File | Why |
 |---|---|
-| `TypeMatch.html` | Entry point, script load order, all CSS tokens |
-| `tm-app.jsx` | App shell, all nav/state wiring, view routing |
-| `tm-components.jsx` | All shared components — check here before building new UI |
-| `tm-recommend.jsx` | Brief wizard, scoring engine, Results, DetailPanel |
-| `tm-preview.jsx` | Preview Lab, font catalogue, all 7 templates |
-| `tm-data.jsx` | All font data — the canonical catalogue |
-| `roadmap.md` | Product direction, what's in scope, decision rules |
-| `audit.md` | Detailed changelog, all phase decisions |
+| [roadmap.md](roadmap.md) | Single source of truth — direction, phases, decision rules |
+| [CLAUDE.md](CLAUDE.md) | Working rules, file layout, what not to do |
+| [TypeMatch.html](typography-generator/project/TypeMatch.html) | Entry point, script load order, all CSS tokens |
+| [tm-app.jsx](typography-generator/project/tm-app.jsx) | App shell, nav/state wiring, view routing |
+| [tm-recommend.jsx](typography-generator/project/tm-recommend.jsx) | Brief wizard, `scoreFont`, Results, DetailPanel |
+| [tm-data.jsx](typography-generator/project/tm-data.jsx) | Current font catalog — Phase 1 will reshape this |
+| [tm-pairing-studio.jsx](typography-generator/project/tm-pairing-studio.jsx) | Existing pairing view — Phase 2 rebuild target |
+| [tm-preview.jsx](typography-generator/project/tm-preview.jsx) | Preview Lab + 7 templates — Phase 2 split target |
+| [tm-components.jsx](typography-generator/project/tm-components.jsx) | Shared primitives — check before building new UI |
+| [audit.md](audit.md) | Detailed changelog of every phase decision |
