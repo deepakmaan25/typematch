@@ -18,27 +18,29 @@ const PRELOADED_FONT_NAMES = new Set([
   'Cormorant Garamond', 'Syne', 'Libre Baskerville', 'DM Serif Display', 'Inter',
 ]);
 
-// Base catalogue — always available (pre-loaded in HTML head via Google Fonts)
+// Base catalogue — always available (pre-loaded in HTML head via Google Fonts).
+// weightMin/weightMax sourced from tm-data.jsx + GF spec for each family.
 const ALL_PREVIEW_FONTS = [
-  { name:'Playfair Display',  family:"'Playfair Display',serif",    type:'Serif' },
-  { name:'DM Sans',           family:"'DM Sans',sans-serif",        type:'Sans' },
-  { name:'Fraunces',          family:"'Fraunces',serif",            type:'Serif' },
-  { name:'Space Grotesk',     family:"'Space Grotesk',sans-serif",  type:'Sans' },
-  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",  type:'Serif' },
-  { name:'Syne',              family:"'Syne',sans-serif",           type:'Display' },
+  { name:'Playfair Display',  family:"'Playfair Display',serif",    type:'Serif',   weightMin:400, weightMax:900  },
+  { name:'DM Sans',           family:"'DM Sans',sans-serif",        type:'Sans',    weightMin:100, weightMax:1000 },
+  { name:'Fraunces',          family:"'Fraunces',serif",            type:'Serif',   weightMin:100, weightMax:900  },
+  { name:'Space Grotesk',     family:"'Space Grotesk',sans-serif",  type:'Sans',    weightMin:300, weightMax:700  },
+  { name:'Cormorant Garamond',family:"'Cormorant Garamond',serif",  type:'Serif',   weightMin:300, weightMax:700  },
+  { name:'Syne',              family:"'Syne',sans-serif",           type:'Display', weightMin:400, weightMax:800  },
 ];
 
 // Convert a results/inspector font object → preview catalogue entry.
-// Preserves `loaded` and `weights` from the canonical schema so the loader
-// can skip injection for pre-verified fonts and request the right weights.
+// Forwards weightMin/weightMax from the canonical schema (set by normalizeFont
+// via parseWeightRange). These drive both buildGFUrl and the weight button UI.
 function toPreviewEntry(font) {
   return {
-    name:     font.name,
-    family:   font.fontFamily || `'${font.name}', sans-serif`,
-    type:     font.classification || 'Custom',
-    injected: true,
-    loaded:   font.loaded  || false,
-    weights:  font.weights || null,
+    name:      font.name,
+    family:    font.fontFamily || font.cssFamily || `'${font.name}', sans-serif`,
+    type:      font.classification || font.category || 'Custom',
+    injected:  true,
+    loaded:    font.loaded || false,
+    weightMin: Number.isFinite(font.weightMin) ? font.weightMin : 400,
+    weightMax: Number.isFinite(font.weightMax) ? font.weightMax : 700,
   };
 }
 
@@ -50,14 +52,15 @@ function buildCatalogue(font) {
 }
 
 // Build a Google Fonts API URL for the given font.
-// Uses weights from the canonical schema (font.weights[]) when available.
-// Fallback requests all four weights the UI weight-buttons expose (300, 400,
-// 500, 700) so the controls are always backed by real font data. GF returns
-// whatever subset the font actually supports — requesting extras is harmless.
+// Requests only the UI-exposed weights (300, 400, 500, 700) that fall within
+// the font's declared weight range (font.weightMin–font.weightMax). This
+// prevents requesting weights a font doesn't have, and keeps the URL honest.
+// GF returns whatever is actually available; requesting within-range extras is safe.
 function buildGFUrl(name, font) {
-  const raw     = Array.isArray(font?.weights) && font.weights.length > 0 ? font.weights : [300, 400, 500, 700];
-  const valid   = raw.filter(w => [100,200,300,400,500,600,700,800,900].includes(w));
-  const weights = [...new Set(valid.length > 0 ? valid : [300, 400, 500, 700])].sort((a,b) => a-b);
+  const min = Number.isFinite(font?.weightMin) ? font.weightMin : 400;
+  const max = Number.isFinite(font?.weightMax) ? font.weightMax : 700;
+  const weights = [300, 400, 500, 700].filter(w => w >= min && w <= max);
+  if (weights.length === 0) weights.push(400); // safety: every GF font has 400
   return `https://fonts.googleapis.com/css2?family=${name.replace(/ /g,'+')}:wght@${weights.join(';')}&display=swap`;
 }
 
@@ -128,6 +131,50 @@ function loadFont(name, font) {
   });
 }
 
+// UI-exposed weights. Must exactly match the weight buttons rendered in the
+// sidebar so getSupportedWeights and the button list stay in sync automatically.
+const UI_WEIGHTS = [300, 400, 500, 700];
+
+// Returns weight support status for each UI weight across the current selection.
+//   'ok'      — every selected font can render this weight (within declared range)
+//   'partial' — some fonts support it, others will CSS-snap to their nearest weight
+//   'none'    — no selected font supports it; rendering would be misleading
+function getSupportedWeights(catalogue, selectedFontNames) {
+  if (!selectedFontNames.length) {
+    return UI_WEIGHTS.map(w => ({ weight: w, status: 'ok', blockingFonts: [] }));
+  }
+  const ranges = selectedFontNames
+    .map(n => catalogue.find(f => f.name === n))
+    .filter(Boolean)
+    .map(f => ({ name: f.name, min: f.weightMin ?? 400, max: f.weightMax ?? 700 }));
+
+  return UI_WEIGHTS.map(w => {
+    const blocking   = ranges.filter(f => w < f.min || w > f.max);
+    const supporting = ranges.filter(f => w >= f.min && w <= f.max);
+    return {
+      weight:       w,
+      status:       blocking.length === 0   ? 'ok'
+                  : supporting.length === 0 ? 'none'
+                  :                           'partial',
+      blockingFonts: blocking.map(f => f.name),
+    };
+  });
+}
+
+// Clamp fontWeight to the nearest weight supported by all selected fonts.
+// Prefers universally-supported weights; falls back to partially-supported.
+// Guarantees a usable weight even in worst-case single-weight font selections.
+function clampToSupported(currentWeight, catalogue, selectedFontNames) {
+  const support    = getSupportedWeights(catalogue, selectedFontNames);
+  const ok         = support.filter(ws => ws.status === 'ok').map(ws => ws.weight);
+  const any        = support.filter(ws => ws.status !== 'none').map(ws => ws.weight);
+  const candidates = ok.length > 0 ? ok : any.length > 0 ? any : [400];
+  if (candidates.includes(currentWeight)) return currentWeight;
+  return candidates.reduce((best, w) =>
+    Math.abs(w - currentWeight) < Math.abs(best - currentWeight) ? w : best
+  );
+}
+
 function PreviewLab({ initialFont }) {
   const [fontCatalogue, setFontCatalogue] = useState(() => buildCatalogue(initialFont));
 
@@ -195,7 +242,12 @@ function PreviewLab({ initialFont }) {
   const [template,      setTemplate]      = useState('article');
   const [darkBg,        setDarkBg]        = useState(false);
   const [fontSize,      setFontSize]      = useState(48);
-  const [fontWeight,    setFontWeight]    = useState(700);
+  // Initialize fontWeight clamped to the initial selection's actual weight range,
+  // so the active button is never disabled on first render.
+  const [fontWeight, setFontWeight] = useState(() => {
+    const initSelected = initialFont?.name ? [initialFont.name] : ['Playfair Display', 'DM Sans'];
+    return clampToSupported(700, buildCatalogue(initialFont), initSelected);
+  });
   const [lineHeight,    setLineHeight]    = useState(120);
   const [letterSpacing, setLetterSpacing] = useState(0);
   const [customText,    setCustomText]    = useState('The craft of beautiful typography starts here.');
@@ -210,9 +262,18 @@ function PreviewLab({ initialFont }) {
       const fontData = fontCatalogue.find(f => f.name === name);
       loadFontAndTrack(name, fontData);
     }
-    setSelectedFonts(prev => prev.includes(name)
-      ? prev.filter(n => n !== name)
-      : prev.length < 3 ? [...prev, name] : [prev[1], prev[2] || name, name].slice(-3));
+    // Compute next selection synchronously so we can clamp fontWeight in the
+    // same event handler — before React re-renders the weight buttons.
+    const next = selectedFonts.includes(name)
+      ? selectedFonts.filter(n => n !== name)
+      : selectedFonts.length < 3
+        ? [...selectedFonts, name]
+        : [selectedFonts[1], selectedFonts[2] || name, name].slice(-3);
+    setSelectedFonts(next);
+    // If the current fontWeight is outside the new selection's supported range,
+    // snap to the nearest weight that all selected fonts can render correctly.
+    const clamped = clampToSupported(fontWeight, fontCatalogue, next);
+    if (clamped !== fontWeight) setFontWeight(clamped);
   }
 
   function saveComparison() {
@@ -297,23 +358,48 @@ function PreviewLab({ initialFont }) {
             <RangeSlider label="Size" value={fontSize} onChange={setFontSize} min={12} max={120} leftLabel="12px" rightLabel="120px" />
             <div>
               <p style={{ fontSize:11, color:'var(--t3)', marginBottom:8 }}>Weight</p>
-              <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                {[300,400,500,700].map(w => {
-                  const active = fontWeight === w;
-                  return (
-                    <button key={w} onClick={()=>setFontWeight(w)}
-                      style={{
-                        padding:'4px 10px', borderRadius:3,
-                        border:`1px solid ${active ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--b1)'}`,
-                        background: active ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
-                        color: active ? 'var(--primary)' : 'var(--t3)',
-                        fontSize:11, cursor:'pointer', fontFamily:'Roboto,sans-serif', fontWeight:w,
-                      }}>
-                      {w}
-                    </button>
-                  );
-                })}
-              </div>
+              {(() => {
+                const support    = getSupportedWeights(fontCatalogue, selectedFonts);
+                const hasPartial = support.some(ws => ws.status === 'partial');
+                return (
+                  <>
+                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                      {support.map(({ weight:w, status, blockingFonts }) => {
+                        const active   = fontWeight === w;
+                        const disabled = status === 'none';
+                        const partial  = status === 'partial';
+                        // Tooltip says which font(s) don't support this weight
+                        const tip = blockingFonts.length
+                          ? `${blockingFonts.join(', ')} ${blockingFonts.length > 1 ? "don't" : "doesn't"} support weight ${w}`
+                          : '';
+                        return (
+                          <button key={w}
+                            disabled={disabled}
+                            onClick={() => !disabled && setFontWeight(w)}
+                            title={tip}
+                            style={{
+                              padding:'4px 10px', borderRadius:3,
+                              border:`1px solid ${active && !disabled ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--b1)'}`,
+                              background: active && !disabled ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'transparent',
+                              color: disabled ? 'var(--t4)' : active ? 'var(--primary)' : 'var(--t3)',
+                              fontSize:11, cursor: disabled ? 'default' : 'pointer',
+                              fontFamily:'Roboto,sans-serif', fontWeight:w,
+                              opacity: disabled ? 0.35 : partial ? 0.72 : 1,
+                              position:'relative',
+                            }}>
+                            {w}{partial && <span style={{ fontSize:8, color:'#f59e0b', marginLeft:1, verticalAlign:'super' }}>*</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {hasPartial && (
+                      <p style={{ fontSize:9, color:'var(--t4)', marginTop:5, lineHeight:1.4 }}>
+                        * Not supported by all selected fonts — renders at nearest available weight
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <RangeSlider label="Line height" value={lineHeight} onChange={setLineHeight} min={80} max={200} leftLabel="Tight" rightLabel="Loose" />
             <RangeSlider label="Letter spacing" value={letterSpacing} onChange={setLetterSpacing} min={-50} max={200} leftLabel="Tight" rightLabel="Wide" />
@@ -377,7 +463,14 @@ function PreviewLab({ initialFont }) {
             {saved.length === 0 ? (
               <p style={{ fontSize:12, color:'var(--t4)', textAlign:'center', padding:'24px 0' }}>No saves yet</p>
             ) : saved.map((s,i) => (
-              <div key={i} style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:6, marginBottom:8, cursor:'pointer' }} onClick={()=>{setSelectedFonts(s.fonts);setTemplate(s.template);setCustomText(s.text);}}>
+              <div key={i} style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:6, marginBottom:8, cursor:'pointer' }} onClick={() => {
+                  setSelectedFonts(s.fonts);
+                  setTemplate(s.template);
+                  setCustomText(s.text);
+                  // Clamp fontWeight to what the restored fonts actually support
+                  const clamped = clampToSupported(fontWeight, fontCatalogue, s.fonts);
+                  if (clamped !== fontWeight) setFontWeight(clamped);
+                }}>
                 <div style={{ fontSize:11, fontWeight:500, color:'var(--t2)', marginBottom:4 }}>{s.fonts.join(' + ')}</div>
                 <div style={{ fontSize:10, color:'var(--t4)' }}>{s.template} · {s.time}</div>
               </div>
