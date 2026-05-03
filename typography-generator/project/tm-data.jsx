@@ -687,6 +687,7 @@ function enrichGFEntry(font, popularityRank) {
   // Type properties — always overwrite the 'medium' defaults normalizeFont
   // sets for bare GF entries; heuristics carry more signal than a flat default.
   font.contrastStyle = h.contrastStyle;
+  font.contrast      = h.contrastStyle;  // legacy alias — keep in sync with contrastStyle
   font.xHeight       = h.xHeight;
 
   // Vibe arrays — only set if currently empty
