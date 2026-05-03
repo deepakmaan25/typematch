@@ -514,6 +514,211 @@ const isDev = (typeof location !== 'undefined') && (
 })();
 
 // ───────────────────────────────────────────────────────────────────
+// Step 3-A: Heuristic enrichment for bare Google Fonts catalog entries.
+//
+// Populates vibe and scoring fields from what the GF API v1 DOES expose:
+//   category, weightMin, weightMax, and position in the popularity-sorted
+//   snapshot (popularityRank). Per-font data the API does not provide
+//   (subcategory, foundry, individual mood/personality, contrastStyle detail)
+//   is left to a future per-font enrichment pass.
+//
+// Design rules:
+//   • Numeric scores (readability, screen, editorial) always overwrite the
+//     flat 70/70/70 backfills that normalizeFont sets for bare GF entries —
+//     those defaults hold no real information for GF-sourced fonts.
+//   • contrastStyle and xHeight always overwrite the 'medium' defaults for
+//     the same reason.
+//   • Array vibe fields (mood, personality, tags, goodFor) and contextScore
+//     are only written if currently empty — preserves any future override.
+//   • trend only set if not already present; only top 200 get 'established'.
+//   • licenseCode corrected for the small known set of Apache 2.0 families.
+//   • completeness fixed at 45: structural + heuristic coverage, no per-font
+//     depth. Curated entries carry 82–100; the contrast is intentional.
+//   • Never called on curated or open-library entries.
+// ───────────────────────────────────────────────────────────────────
+
+// Families verifiably under Apache 2.0 in the Google Fonts GitHub source.
+// All other GF families are assumed OFL; the API does not expose this per-font.
+// Noto and Roboto sub-families are caught by the regex tests in enrichGFEntry.
+const APACHE_GF_FAMILIES = new Set([
+  'Roboto', 'Roboto Condensed', 'Roboto Flex', 'Roboto Mono',
+  'Roboto Serif', 'Roboto Slab',
+  'Noto Sans', 'Noto Serif', 'Noto Sans Mono',
+  'Noto Color Emoji', 'Noto Emoji',
+]);
+
+// Returns a heuristic profile object for category × weight bucket.
+// Weight bucket:
+//   'wide'     — weightMin ≤ 300 AND weightMax ≥ 700 (versatile / variable-ready)
+//   'narrow'   — weightMax ≤ 400 (display-weight or single-weight fonts)
+//   'standard' — everything else
+//
+// goodFor strings are written so the first word matches the trigger tokens
+// that useCaseFit() extracts from USE_CASES (first word before '&', lowercased):
+//   "UI & Product"→"ui", "Body copy"→"body", "Code & data"→"code",
+//   "Long-form reading"→"long-form", "Brand identity"→"brand", etc.
+function getCategoryHeuristics(category, weightMin, weightMax) {
+  const isWide   = weightMin <= 300 && weightMax >= 700;
+  const isNarrow = weightMax <= 400;
+  const bucket   = isWide ? 'wide' : isNarrow ? 'narrow' : 'standard';
+
+  // Single-profile categories — weight range does not meaningfully change vibe
+  const SINGLE = {
+    display: {
+      readability: 52, screenSuitability: 62, editorialSuitability: 72,
+      contrastStyle: 'variable', xHeight: 'medium',
+      mood:        ['expressive', 'bold', 'dramatic'],
+      personality: ['distinctive', 'attention-grabbing'],
+      tags:        ['display', 'headline', 'decorative'],
+      goodFor:     ['Headlines at display sizes', 'Brand identity', 'Packaging design', 'Marketing', 'Editorial display'],
+      contextScore:{ saas:44, editorial:72, fintech:38, portfolio:80, devtool:28, consumer:68, luxury:72, ecommerce:66, agency:82, academic:44 },
+    },
+    monospace: {
+      readability: 72, screenSuitability: 88, editorialSuitability: 48,
+      contrastStyle: 'low', xHeight: 'medium',
+      mood:        ['technical', 'precise', 'functional'],
+      personality: ['systematic', 'code-native'],
+      tags:        ['monospace', 'code', 'technical'],
+      goodFor:     ['Code & data display', 'Web app UI', 'Technical documentation', 'Developer tools'],
+      contextScore:{ saas:58, editorial:28, fintech:50, portfolio:52, devtool:92, consumer:32, luxury:22, ecommerce:35, agency:42, academic:62 },
+    },
+    handwriting: {
+      readability: 56, screenSuitability: 52, editorialSuitability: 60,
+      contrastStyle: 'variable', xHeight: 'low',
+      mood:        ['playful', 'warm', 'personal', 'expressive'],
+      personality: ['crafted', 'informal'],
+      tags:        ['script', 'handwriting', 'decorative'],
+      goodFor:     ['Brand identity accents', 'Packaging design', 'Marketing materials', 'Headlines at large sizes'],
+      contextScore:{ saas:24, editorial:58, fintech:20, portfolio:65, devtool:14, consumer:74, luxury:62, ecommerce:60, agency:68, academic:32 },
+    },
+  };
+  if (SINGLE[category]) return SINGLE[category];
+
+  // Multi-bucket categories — weight range signals rendering versatility
+  const MULTI = {
+    'sans-serif': {
+      wide: {
+        readability: 82, screenSuitability: 86, editorialSuitability: 62,
+        contrastStyle: 'low', xHeight: 'medium',
+        mood:        ['modern', 'clean', 'versatile'],
+        personality: ['functional', 'reliable'],
+        tags:        ['ui', 'screen', 'versatile'],
+        goodFor:     ['UI text', 'Product interfaces', 'Web app UI', 'Marketing pages', 'Body copy'],
+        contextScore:{ saas:74, editorial:52, fintech:66, portfolio:65, devtool:62, consumer:70, luxury:48, ecommerce:72, agency:64, academic:55 },
+      },
+      standard: {
+        readability: 78, screenSuitability: 80, editorialSuitability: 60,
+        contrastStyle: 'low', xHeight: 'medium',
+        mood:        ['modern', 'clean', 'neutral'],
+        personality: ['reliable', 'professional'],
+        tags:        ['ui', 'screen'],
+        goodFor:     ['UI text', 'Marketing pages', 'Web app UI', 'Body copy'],
+        contextScore:{ saas:70, editorial:48, fintech:62, portfolio:60, devtool:56, consumer:66, luxury:44, ecommerce:68, agency:62, academic:52 },
+      },
+      narrow: {
+        readability: 72, screenSuitability: 74, editorialSuitability: 58,
+        contrastStyle: 'low', xHeight: 'medium',
+        mood:        ['clean', 'simple', 'minimal'],
+        personality: ['straightforward'],
+        tags:        ['ui', 'simple'],
+        goodFor:     ['UI text', 'Simple layouts', 'Marketing'],
+        contextScore:{ saas:64, editorial:44, fintech:56, portfolio:56, devtool:50, consumer:62, luxury:40, ecommerce:62, agency:58, academic:48 },
+      },
+    },
+    serif: {
+      wide: {
+        readability: 80, screenSuitability: 72, editorialSuitability: 86,
+        contrastStyle: 'medium', xHeight: 'medium',
+        mood:        ['classic', 'authoritative', 'refined'],
+        personality: ['trustworthy', 'editorial'],
+        tags:        ['editorial', 'reading', 'classic'],
+        goodFor:     ['Editorial headings', 'Long-form reading', 'Print typography', 'Body copy', 'Headlines'],
+        contextScore:{ saas:52, editorial:88, fintech:58, portfolio:72, devtool:32, consumer:56, luxury:80, ecommerce:62, agency:68, academic:84 },
+      },
+      standard: {
+        readability: 76, screenSuitability: 68, editorialSuitability: 84,
+        contrastStyle: 'medium', xHeight: 'medium',
+        mood:        ['classic', 'refined', 'traditional'],
+        personality: ['authoritative', 'steady'],
+        tags:        ['editorial', 'classic'],
+        goodFor:     ['Editorial headings', 'Print typography', 'Body copy', 'Headlines'],
+        contextScore:{ saas:48, editorial:84, fintech:55, portfolio:68, devtool:28, consumer:52, luxury:78, ecommerce:58, agency:65, academic:82 },
+      },
+      narrow: {
+        readability: 70, screenSuitability: 62, editorialSuitability: 80,
+        contrastStyle: 'high', xHeight: 'low',
+        mood:        ['delicate', 'refined', 'elegant'],
+        personality: ['graceful', 'restrained'],
+        tags:        ['display-serif', 'luxury', 'delicate'],
+        goodFor:     ['Headlines at display sizes', 'Editorial display', 'Print typography'],
+        contextScore:{ saas:36, editorial:80, fintech:42, portfolio:72, devtool:20, consumer:48, luxury:88, ecommerce:55, agency:70, academic:70 },
+      },
+    },
+  };
+
+  const profile = MULTI[category] && MULTI[category][bucket];
+  if (profile) return profile;
+
+  // Unknown / future category — minimal neutral fallback
+  return {
+    readability: 70, screenSuitability: 70, editorialSuitability: 65,
+    contrastStyle: 'medium', xHeight: 'medium',
+    mood:        ['neutral'],
+    personality: [],
+    tags:        [],
+    goodFor:     [],
+    contextScore:{ saas:55, editorial:55, fintech:50, portfolio:55, devtool:50, consumer:55, luxury:45, ecommerce:55, agency:55, academic:55 },
+  };
+}
+
+function enrichGFEntry(font, popularityRank) {
+  const h = getCategoryHeuristics(
+    font.category || 'sans-serif',
+    font.weightMin,
+    font.weightMax,
+  );
+
+  // Numeric scores — always overwrite normalizeFont's 70/70/70 backfills.
+  font.readability          = h.readability;
+  font.screenSuitability    = h.screenSuitability;
+  font.editorialSuitability = h.editorialSuitability;
+  font.printSuitability     = h.editorialSuitability; // legacy alias kept in sync
+
+  // Type properties — always overwrite the 'medium' defaults normalizeFont
+  // sets for bare GF entries; heuristics carry more signal than a flat default.
+  font.contrastStyle = h.contrastStyle;
+  font.xHeight       = h.xHeight;
+
+  // Vibe arrays — only set if currently empty
+  if (!Array.isArray(font.mood)        || !font.mood.length)        font.mood        = h.mood.slice();
+  if (!Array.isArray(font.personality) || !font.personality.length) font.personality = h.personality.slice();
+  if (!Array.isArray(font.tags)        || !font.tags.length)        font.tags        = h.tags.slice();
+  if (!Array.isArray(font.goodFor)     || !font.goodFor.length)     font.goodFor     = h.goodFor.slice();
+  if (!font.contextScore)                                            font.contextScore = Object.assign({}, h.contextScore);
+
+  // Trend — top 200 in the GF popularity sort earn 'established' with confidence.
+  // Below that we cannot distinguish established from emerging from API rank alone.
+  if (!font.trend) {
+    font.trend = popularityRank < 200 ? 'established' : null;
+  }
+
+  // License correction — the snapshot hardcodes OFL for all entries (API v1 limit).
+  // Roboto and Noto families are verifiably Apache 2.0 in the GF GitHub source.
+  const fam = font.family || '';
+  if (APACHE_GF_FAMILIES.has(fam) || /^Noto\b/i.test(fam) || /^Roboto\b/i.test(fam)) {
+    font.licenseCode       = 'Apache';
+    font.licenseConfidence = 'high';
+    font.license           = 'Apache 2.0';
+  }
+
+  // Completeness — 45: structural + heuristic coverage, no per-font depth.
+  // Curated entries carry 82–100. The gap signals metadata quality to the UI.
+  font.completeness = 45;
+
+  return font;
+}
+
+// ───────────────────────────────────────────────────────────────────
 // Phase 1 Google Fonts catalog merge — non-blocking.
 // Starts the moment tm-google-fonts.json resolves (fetch began before
 // Babel fired). Combined catalog available long before user reaches Results.
@@ -553,14 +758,17 @@ const isDev = (typeof location !== 'undefined') && (
       SAMPLE_COLLECTION.forEach(function (f) { known.add(f.family.toLowerCase()); });
       OPEN_FONT_LIBRARY.forEach(function (f) { known.add(f.family.toLowerCase()); });
 
-      // C — filter snapshot: only new families not already in the curated catalog
+      // C — filter snapshot: only new families not already in the curated catalog.
+      // popularityRank = index in the popularity-sorted snapshot (0 = most popular).
       const { normalizeFont } = window.TMSchema;
       const newFromGF = [];
-      raw.forEach(function (entry) {
+      raw.forEach(function (entry, popularityRank) {
         const key = (entry.family || '').toLowerCase();
         if (!key || known.has(key)) return;
         known.add(key); // also deduplicates within the GF snapshot itself
-        newFromGF.push(normalizeFont(entry));
+        const normalized = normalizeFont(entry);
+        enrichGFEntry(normalized, popularityRank);
+        newFromGF.push(normalized);
       });
 
       // D — expose combined catalog to window
@@ -570,7 +778,7 @@ const isDev = (typeof location !== 'undefined') && (
 
       if (isDev) {
         console.info(
-          `[TypeMatch] GF catalog merged: ${newFromGF.length} new families added ` +
+          `[TypeMatch] GF catalog merged: ${newFromGF.length} new families enriched + added ` +
           `(${window.ALL_FONTS.length} total, ${raw.length} in snapshot).`
         );
       }
