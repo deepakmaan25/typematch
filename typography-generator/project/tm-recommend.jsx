@@ -111,8 +111,27 @@ function passesEnrichmentGate(font) {
 
 function scoreFont(font, query, collection=[]) {
   const ctxKey = resolveContextKey(query);
+  // Metadata quality factor — how much to trust the mood alignment score.
+  //
+  // Curated and open-library fonts (completeness ≥ 80, or field absent — treated
+  // as 100 via `|| 100`) carry hand-curated, per-font mood arrays: full trust.
+  //
+  // Heuristic GF entries (completeness ≈ 45, set by enrichGFEntry) carry
+  // category-level arrays shared by every font in that category × weight-bucket.
+  // They match common brief terms by design, which can produce moodFit=100 on
+  // generic briefs even when a richer curated alternative is a better real fit.
+  //
+  // Formula: completeness/80 for completeness < 80, clamped to [0.5, 1.0].
+  //   completeness=45 (GF heuristic) → factor ≈ 0.56
+  //   completeness=80+ (curated/open-library) → factor = 1.0
+  //   floor 0.5 prevents extreme suppression if future completeness values go low.
+  //
+  // To revert: replace `Math.round(... * moodQuality)` with `moodAlignment(...)`.
+  const completeness = font.completeness || 100;
+  const moodQuality  = completeness >= 80 ? 1.0 : Math.max(0.5, completeness / 80);
+
   const dims = {
-    moodFit:        moodAlignment(font, query.moods||[]),
+    moodFit:        Math.round(moodAlignment(font, query.moods||[]) * moodQuality),
     useCaseFit:     useCaseFit(font, query.useCases||[]),
     brandContext:   brandContextFit(font, ctxKey),
     readability:    readabilityScore(font, query.readFirst),
