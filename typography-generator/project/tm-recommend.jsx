@@ -865,7 +865,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
         <KV label="Languages" value={font.languages || 'Latin'} />
         <KV label="Foundry" value={font.foundry || '—'} />
-        <KV label="Variable" value={font.variable ? 'Yes' : 'No'} />
+        <KV label="Variable" value={font.variable == null ? '—' : font.variable ? 'Yes' : 'No'} />
         <KV label="Source" value={isAI ? 'Open library' : 'Your library'} />
       </div>
       {font.availability ? (
