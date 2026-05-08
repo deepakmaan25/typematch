@@ -1,6 +1,6 @@
 # TypeMatch — Handoff / Working Memory
 
-> Last updated: 2026-04-29
+> Last updated: 2026-05-08
 > Live: https://typematch-mu.vercel.app
 > Repo: https://github.com/deepakmaan25/typematch
 > Project files: `typography-generator/project/`
@@ -44,7 +44,9 @@ The v1 app is deployed and the core loop (Brief → Results → Inspect → Prev
 ### Preview Lab (`tm-preview.jsx`)
 - 7 templates: Article (production-quality), Hero, Body, Editorial, Brand, Mobile, UI (placeholders)
 - Dynamic font injection: any font from Results/Inspector is added to `fontCatalogue`
-- `ensureFontLoaded(name)` — appends Google Fonts `<link>` idempotently
+- **Async font load pipeline** (2026-05-03): `loadFont()` + `document.fonts.load()` replaces fire-and-forget `ensureFontLoaded`. Each font tracks `'loading' | 'loaded' | 'failed'` state. `PreviewCard` renders skeleton/error instead of silently falling back to system fonts.
+- **Weight integrity** (2026-05-03): `getSupportedWeights()` + `clampToSupported()` derive support from canonical `weightMin`/`weightMax`. Weight buttons reflect real ranges. `buildGFUrl()` requests only supported weights. `fontWeight` auto-clamps on font selection changes and at init.
+- **Weight control accessibility** (2026-05-03): `aria-disabled`, `aria-pressed`, `aria-label` with full context, `role="group"`, always-visible per-weight notes naming blocking fonts.
 - Canvas dark/light toggle is independent of app shell theme
 
 ### Landing (`tm-landing.jsx`)
@@ -59,11 +61,11 @@ Static site on Vercel (root: `typography-generator/project`). React 18.3.1 produ
 
 In rough order. Sequence may shift, but **all of these come before any of the deferred items below**.
 
-1. **Define the normalized font schema in code** — match the target shape in [roadmap.md](roadmap.md). Decide where it lives (`tm-data.jsx` extension vs. a dedicated `tm-schema.jsx`).
-2. **Google Fonts ingestion pipeline** — pull family metadata via the Developer API, render via the CSS API. Cache normalized metadata locally; do not fetch at scoring time.
-3. **Catalog expansion** — grow well beyond the ~30 hardcoded fonts in `tm-data.jsx`. Treat the existing entries as a curated seed/override layer.
-4. **Recommendation explainability** — every result card surfaces a "why this works" string. This unblocks the trust problem with the current "AI" label.
-5. **Replace "AI" copy** — UI strings ("Get recommendations · auto_awesome", any "AI" badges) become honest structured-scoring language.
+1. ~~**Define the normalized font schema in code**~~ — ✅ Done. `tm-schema.jsx`, `normalizeFont()`, `validateFont()`. All 22 curated fonts valid.
+2. ~~**Google Fonts ingestion pipeline**~~ — ✅ Done. 1938-family snapshot (`tm-google-fonts.json`), `enrichGFEntry()`, `initGFMerge()` IIFE, `window.ALL_FONTS` (1938 total), `tm:catalog-updated` event. Scorer uses GF catalog when ready. Verified 2026-05-05.
+3. **Catalog expansion** — ✅ Resolved by Step 2. GF snapshot provides 1916 enriched entries. `tm-data.jsx` is now the curated seed/override layer.
+4. ~~**Recommendation explainability**~~ — ✅ Done. `buildWhyText` rewritten to mirror scorer signals (mood + use-case via `goodFor`+`useCases` haystack), preserve original case, append heuristic-confidence tag for low-completeness GF entries. Honest, scannable.
+5. ~~**Replace "AI" copy**~~ — ✅ Done. Settings: "AI recommendations" → "Library suggestions". Tweak toggle: "AI suggestions" → "Library suggestions". Data sources list rewritten to reflect actual sources. Internal comments cleaned in `tm-data.jsx`, `tm-recommend.jsx`.
 
 Phase 2 (weighted scoring engine, curated pairing cache, Pairing Studio rebuild) and Phase 3 (Supabase/Firebase backend, uploads) follow. See [roadmap.md](roadmap.md).
 
@@ -105,9 +107,11 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 - Full Brief → Results → Inspector → Preview flow
 - Dark/light mode parity everywhere
 - Inspector focus management (trap, return, ESC)
-- Dynamic Google Fonts injection in PreviewLab
+- Dynamic Google Fonts injection in PreviewLab — now async with load/failed states
 - Loading, empty, error states on Results
 - Vercel auto-deploy on `git push`
+- Weight controls reflect actual font weight support (no phantom/unsupported options shown)
+- Retry-safe font injection (stale `<link>` cleared before re-attempt)
 
 ---
 
@@ -126,6 +130,8 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 - No URL routing — back button does nothing, no deep links
 - Mobile layout is broken in several views
 - Babel in-browser cold-start lag (~1–2s)
+- ~~`cssFamily` is still borrowed in `OPEN_FONT_LIBRARY` entries~~ — ✅ Resolved by Step 3. GF ingestion provides per-entry loading; `OPEN_FONT_LIBRARY` entries load via their own GF families.
+- ~~`source: 'web'` on `OPEN_FONT_LIBRARY` not in canonical enum~~ — ✅ Resolved by Step 3. `initGFMerge()` remaps `source:'web'` → `'open-library'` when snapshot resolves.
 
 ---
 
@@ -134,7 +140,12 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 | Decision | Status |
 |---|---|
 | Roadmap rewritten around data, schema, ingestion, recommendation quality, persistence, pairing | Active (2026-04-29) |
-| Google Fonts API integration moved to Phase 1 | Active |
+| Preview Lab font load pipeline: async pipeline, weight integrity, a11y polish (3 passes, `tm-preview.jsx` only) | Shipped (2026-05-03) — PR #3 |
+| "AI" copy removed from landing and onboarding surfaces | Shipped (2026-05-03, `dbad554`) — Phase 1 Step 5 done |
+| **Phase 1 Step 3 — GF ingestion pipeline verified and complete** | **Shipped (2026-05-05)** — 1938 families, all enriched, scorer active, DetailPanel null-guards confirmed |
+| **Phase 1 Step 4/5 — Explainability + AI copy cleanup** | **Shipped (2026-05-08)** — `buildWhyText` rewrite, settings/tweak copy, internal comments. Honest structured-scoring language throughout. |
+| **Critical bugfix: pairing-studio `const ALL_FONTS` clobbered window.ALL_FONTS** | **Shipped (2026-05-08)** — Babel transpiles `const` → `var` in classic script mode, leaking to window. Renamed to `PAIRING_STUDIO_FONTS`. Without this fix, GF fonts never appeared in scoring results. |
+| Google Fonts API integration moved to Phase 1 | ✅ Complete |
 | Backend (Supabase/Firebase) planned for Phase 3 | Active |
 | Font upload + Local Font Access moved into scope (Phase 3 / Phase 4) | Active |
 | Pairing Studio promoted to signature feature | Active |
@@ -145,16 +156,40 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 | Brief-as-home route swap | Deferred (was approved-not-shipped) |
 | Single chrome accent (primary only) | Deferred (was approved-partial) |
 
-## Step 2 migration findings (2026-04-30)
-
-Recorded for Step 3 awareness — no action required now.
+## Step 2 migration findings (2026-04-30) — resolved in Step 3
 
 | Finding | Impact | Resolution |
 |---|---|---|
-| `source: 'web'` on all `OPEN_FONT_LIBRARY` entries — not in canonical enum | Non-breaking; recommender overrides `source` at results-assembly time | Remap to `'open-library'` in same commit as GF ingestion (Step 3) |
-| `OPEN_FONT_LIBRARY` missing `xHeight`, `weight`, `axes`, `variable`, `personality`, `tags`, etc. | Normalizer backfills generic defaults; scorer null-guards all of these | Populated by GF metadata snapshot in Step 3 |
-| `cssFamily` is borrowed in `OPEN_FONT_LIBRARY` (e.g. IBM Plex Sans renders as Inter) | Pre-existing data issue; fonts visual-proxy to other loaded fonts in Preview Lab | Fixed when `ensureFontLoaded` is wired per-entry in Step 3 |
-| `AI_SUGGESTIONS` carries "AI" framing in variable name and UI copy | Misleading; Phase 1 copy work target | Copy pass in Phase 1 step 5–6 |
+| `source: 'web'` on all `OPEN_FONT_LIBRARY` entries — not in canonical enum | Non-breaking | ✅ `initGFMerge()` remaps `source:'web'` → `'open-library'` on snapshot resolve |
+| `OPEN_FONT_LIBRARY` missing `xHeight`, `weight`, `axes`, `variable`, `personality`, `tags`, etc. | Normalizer backfills generic defaults | ✅ `normalizeFont()` + `enrichGFEntry()` provide full schema for all GF entries |
+| `cssFamily` is borrowed in `OPEN_FONT_LIBRARY` (e.g. IBM Plex Sans renders as Inter) | Fonts visual-proxy to other loaded fonts in Preview Lab | ✅ GF ingestion provides per-entry CSS loading via `loadFont()` / `buildGFUrl()` |
+| `AI_SUGGESTIONS` carries "AI" framing in variable name and UI copy | Misleading; Phase 1 copy work target | Open — copy pass in Phase 1 step 4/5 |
+
+## Step 3 verification findings (2026-05-05)
+
+| Check | Result |
+|---|---|
+| `window.__GF_CATALOG_READY === true` | ✅ |
+| `window.ALL_FONTS.length` | ✅ 1938 (10 curated + 12 open-library + 1916 GF) |
+| `window.GF_FONT_LIBRARY.length` | ✅ 1916 |
+| All GF entries `completeness === 45` | ✅ 0 anomalies |
+| All GF entries `source === 'google-fonts'` | ✅ 0 wrong-source |
+| All GF entries `mood.length > 0` | ✅ 0 empty |
+| All GF entries `goodFor.length > 0` | ✅ 0 empty |
+| All GF entries `contextScore` populated | ✅ 0 missing |
+| All GF entries `loaded === false` | ✅ 0 wrong-loaded |
+| No empty/missing `family` fields | ✅ 0 empty |
+| No duplicates in `ALL_FONTS` | ✅ 0 duplicates |
+| `OPEN_FONT_LIBRARY` source remap | ✅ 0 entries with `source:'web'` |
+| Roboto `licenseCode === 'Apache'` | ✅ high confidence |
+| Noto Sans `licenseCode === 'Apache'` | ✅ high confidence |
+| `passesEnrichmentGate()` — all GF entries pass | ✅ 0 gate failures |
+| GF fonts appear in scorer results (Nunito: 70, curated Inter: 78) | ✅ completeness damping active |
+| `buildGFUrl()` — correct URL format | ✅ weights filtered to declared range |
+| Link injection path — `<link>` added to DOM correctly | ✅ |
+| `toPreviewEntry()` sets `loaded: false` for GF fonts | ✅ |
+| DetailPanel — `wouldRenderBad` fields | ✅ empty (zero crash paths) |
+| `variable: null` in License tab | ⚠ Cosmetic only — fixed: `null → '—'` (was `'No'`) |
 
 ---
 

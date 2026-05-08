@@ -36,7 +36,7 @@ const CANVAS_BG = [
   { id:'brand',     label:'Brand',      bg:'#0D1829', text:'rgba(123,168,255,0.92)' },
 ];
 
-const ALL_FONTS = [
+const PAIRING_STUDIO_FONTS = [
   { name:'Playfair Display',  family:"'Playfair Display',serif",        type:'Serif',   suggestion:['DM Sans','Space Grotesk'] },
   { name:'DM Sans',           family:"'DM Sans',sans-serif",            type:'Sans',    suggestion:['Playfair Display','Fraunces','DM Serif Display'] },
   { name:'Fraunces',          family:"'Fraunces',serif",                type:'Serif',   suggestion:['DM Sans','Space Grotesk'] },
@@ -102,7 +102,7 @@ function PairingStudio({ initialFont }) {
   }
 
   function getSlotFont(slot) {
-    return ALL_FONTS.find(f=>f.name===slotFonts[slot]) || ALL_FONTS[0];
+    return PAIRING_STUDIO_FONTS.find(f=>f.name===slotFonts[slot]) || PAIRING_STUDIO_FONTS[0];
   }
 
   function getSlotProp(slot, prop) {
@@ -201,7 +201,7 @@ function PairingStudio({ initialFont }) {
                   <select value={slotFonts[slot]||'DM Sans'} onChange={e=>setSlotFonts(f=>({...f,[slot]:e.target.value}))}
                     onClick={e=>e.stopPropagation()}
                     style={{ width:'100%', marginBottom:6, fontSize:13, padding:'7px 10px', fontFamily:`'${slotFonts[slot]||'DM Sans'}',sans-serif`, background:'var(--bg)', border:'1px solid var(--b2)', borderRadius:'var(--r-sm)', color:'var(--t1)' }}>
-                    {ALL_FONTS.map(f=><option key={f.name} value={f.name} style={{ fontFamily:f.family }}>{f.name}</option>)}
+                    {PAIRING_STUDIO_FONTS.map(f=><option key={f.name} value={f.name} style={{ fontFamily:f.family }}>{f.name}</option>)}
                   </select>
                   <p style={{ fontSize:11, color:'var(--t3)', fontFamily:fontObj.family, lineHeight:1.2 }}>{SAMPLE_TEXTS[slot]?.substring(0,28) || 'Preview text'}</p>
                 </div>
@@ -286,7 +286,7 @@ function PairingStudio({ initialFont }) {
 
 /* ── Canvas renderer ────────────────────────────────────── */
 function PairingCanvas({ mode, slots, slotFonts, slotProps, getSlotProp, bgObj, context, customTexts }) {
-  const getFF  = slot => { const f=ALL_FONTS.find(x=>x.name===slotFonts[slot]); return f?f.family:"'DM Sans',sans-serif"; };
+  const getFF  = slot => { const f=PAIRING_STUDIO_FONTS.find(x=>x.name===slotFonts[slot]); return f?f.family:"'DM Sans',sans-serif"; };
   const text   = slot => customTexts[slot] || SAMPLE_TEXTS[slot] || '';
   const sz     = slot => getSlotProp(slot,'size');
   const wt     = slot => getSlotProp(slot,'weight');

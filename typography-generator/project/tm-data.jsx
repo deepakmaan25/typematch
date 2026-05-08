@@ -1,6 +1,6 @@
-// tm-data.jsx v3 — Large curated open-source font library with rich AI context
-// Each font carries dense metadata that the recommender (and any LLM downstream)
-// can use to reason about *why* a typeface fits a given brief.
+// tm-data.jsx v3 — Large curated open-source font library with rich scoring metadata
+// Each font carries dense metadata that the recommender uses to compute
+// dimension scores and to compose the "why this fits" explanation.
 //
 // Schema:
 //   id, name, foundry, classification, subtype
@@ -21,7 +21,7 @@
 //   license             — OFL (Free) | Apache 2.0 (Free) | Commercial — Foundry
 //   languages           — Latin | Latin Extended | Cyrillic + Greek | Pan-European | etc.
 //   pairingWith[]       — known good pairings inside this catalog
-//   goodFor[]           — short bullet list — feeds AI explainability
+//   goodFor[]           — short bullet list — feeds explainability text
 //   avoidFor[]          — what NOT to use this for — anti-recommendation
 //   notes               — long-form rationale
 //   completeness        — 0-100 metadata health
@@ -90,7 +90,7 @@ const SAMPLE_COLLECTION = [
     contrast: 'High', xHeight: 'Low', weight: '300-700',
     variable: false, axes: [], license: 'OFL (Free)', languages: 'Latin Extended + Greek',
     pairingWith: ['DM Sans','Syne','Inter'],
-    goodFor: ['Display sizes 48px+','Luxury print','Italic flourishes'],
+    goodFor: ['Display sizes 48px+','Luxury print','Italic flourishes','Display headlines'],
     avoidFor: ['Small UI text','Mobile body copy','Low-resolution screens'],
     notes: 'Extremely refined and delicate. Best at larger sizes. The italic is stunning. Six optical sub-families.',
     completeness: 88, addedDate: '2024-02-15',
@@ -172,7 +172,7 @@ const SAMPLE_COLLECTION = [
     variable: true, axes: ['wght','opsz','slnt'],
     license: 'OFL (Free)', languages: 'Pan-European + Cyrillic + Greek + Vietnamese',
     pairingWith: ['Fraunces','Source Serif 4','Playfair Display','Libre Baskerville'],
-    goodFor: ['UI down to 11px','Data tables','Number-heavy UI','Settings'],
+    goodFor: ['UI down to 11px','Data tables','Number-heavy UI','Settings','Mobile UI'],
     avoidFor: ['Pure editorial','Display work where character matters'],
     notes: 'The de-facto SaaS UI standard. Tabular figures, optical sizes, very high x-height. Comprehensive scripts.',
     completeness: 100, addedDate: '2024-01-08',
@@ -244,8 +244,8 @@ const SAMPLE_COLLECTION = [
   // ── Loaded for hero/specimens but not in default collection (web suggestions) ──
 ];
 
-// Companion library — a much larger AI knowledge base of open-source fonts
-// the recommender can surface as "AI + Web Suggestions" beyond the user's collection.
+// Companion library — a curated open-source font library the recommender
+// can surface as "Library Suggestions" beyond the user's collection.
 // All OFL/Apache/SIL — explicitly free for commercial use.
 const OPEN_FONT_LIBRARY = [
   {
@@ -274,7 +274,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['saas','consumer','startup','wellness'],
     readability:93, screenSuitability:95, printSuitability:84,
     pairingWith:['Fraunces','Playfair Display'],
-    goodFor:['Consumer SaaS','Mobile-first','Wellness/health products'],
+    goodFor:['Consumer SaaS','Mobile-first','Wellness/health products','UI text'],
     avoidFor:['Heavy enterprise','Editorial print'],
     notes:'Variable. Slightly rounded terminals create approachable warmth.',
     contextScore:{saas:90,editorial:60,fintech:78,portfolio:75,devtool:62,consumer:94,luxury:58,ecommerce:88,agency:72,academic:55},
@@ -292,7 +292,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['developer','saas','startup','tech'],
     readability:93, screenSuitability:96, printSuitability:80,
     pairingWith:['Geist Mono','Inter'],
-    goodFor:['Developer tools','Modern SaaS','Mono companion needs'],
+    goodFor:['Developer tools','Modern SaaS','Mono companion needs','UI text'],
     avoidFor:['Editorial luxury','Heritage brands'],
     notes:'Vercel\'s in-house family. Excellent mono companion. Inspired by Inter, with sharper geometry.',
     contextScore:{saas:92,editorial:48,fintech:78,portfolio:80,devtool:96,consumer:75,luxury:42,ecommerce:72,agency:74,academic:55},
@@ -346,7 +346,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['academic','non-profit','editorial','heritage'],
     readability:90, screenSuitability:84, printSuitability:94,
     pairingWith:['Inria Sans','Inter'],
-    goodFor:['Academic publishing','Long reading','Institutional brands'],
+    goodFor:['Academic publishing','Long-form reading','Institutional brands'],
     avoidFor:['Tech startups','Loud consumer'],
     notes:'Designed for INRIA — the French research institution. Warm, gently humanist.',
     contextScore:{saas:55,editorial:88,fintech:50,portfolio:62,devtool:38,consumer:52,luxury:62,ecommerce:48,agency:60,academic:96},
@@ -400,7 +400,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['saas','consumer','startup','agency'],
     readability:88, screenSuitability:92, printSuitability:84,
     pairingWith:['Fraunces','Playfair Display','Inter'],
-    goodFor:['Modern brand display','Variable system needs','Distinctive product voice'],
+    goodFor:['Modern brand display','Variable system needs','Distinctive product voice','Display headlines'],
     avoidFor:['Pure UI body','Cold engineered tone'],
     notes:'Variable font with width + grade axes. Newer, fashionable, distinctive without being weird.',
     contextScore:{saas:84,editorial:78,fintech:62,portfolio:88,devtool:62,consumer:88,luxury:70,ecommerce:80,agency:90,academic:60},
@@ -418,7 +418,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['editorial','publishing','blog','knowledge'],
     readability:95, screenSuitability:92, printSuitability:90,
     pairingWith:['Inter','DM Sans'],
-    goodFor:['Long reading','Modern publishing','Newsletter brands'],
+    goodFor:['Long-form reading','Modern publishing','Newsletter brands','Editorial content'],
     avoidFor:['Loud display','Pure tech voices'],
     notes:'Variable, with optical size axis. Designed for screen-first publishing.',
     contextScore:{saas:72,editorial:96,fintech:55,portfolio:75,devtool:42,consumer:74,luxury:72,ecommerce:62,agency:75,academic:88},
@@ -436,7 +436,7 @@ const OPEN_FONT_LIBRARY = [
     brandFit:['consumer','startup','wellness','lifestyle'],
     readability:91, screenSuitability:94, printSuitability:80,
     pairingWith:['Fraunces','Newsreader'],
-    goodFor:['Consumer apps','Marketing pages','Wellness/lifestyle brands'],
+    goodFor:['Consumer apps','Marketing pages','Wellness/lifestyle brands','UI text','Mobile app UI'],
     avoidFor:['Cold enterprise','Editorial print'],
     notes:'Variable geometric — friendlier than Inter, less character than Manrope.',
     contextScore:{saas:80,editorial:55,fintech:62,portfolio:75,devtool:50,consumer:92,luxury:55,ecommerce:84,agency:75,academic:48},
@@ -450,7 +450,7 @@ const OPEN_FONT_LIBRARY = [
     id:'lib-12', name:'EB Garamond', foundry:'Georg Duffner',
     classification:'Serif', subtype:'Old Style',
     license:'OFL (Free)', languages:'Latin Extended + Greek + Cyrillic',
-    mood:['classical','heritage','gentle','literary'],
+    mood:['classic','heritage','gentle','literary'],
     brandFit:['academic','literary','heritage','luxury'],
     readability:91, screenSuitability:80, printSuitability:97,
     pairingWith:['Inter','Source Sans 3'],
@@ -687,6 +687,7 @@ function enrichGFEntry(font, popularityRank) {
   // Type properties — always overwrite the 'medium' defaults normalizeFont
   // sets for bare GF entries; heuristics carry more signal than a flat default.
   font.contrastStyle = h.contrastStyle;
+  font.contrast      = h.contrastStyle;  // legacy alias — keep in sync with contrastStyle
   font.xHeight       = h.xHeight;
 
   // Vibe arrays — only set if currently empty

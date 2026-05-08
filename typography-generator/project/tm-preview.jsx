@@ -365,8 +365,10 @@ function PreviewLab({ initialFont }) {
                   <>
                     {/*
                       role="group" + aria-label groups the buttons semantically.
-                      Individual aria-labels carry the full explanation so screen
-                      readers don't need to reach the footer notes.
+                      Each button's aria-label is "Weight {w}" only — restriction
+                      detail lives in the visible note below, connected via
+                      aria-describedby so AT reads the same text sighted users see.
+                      No hidden text, no duplication.
                       aria-disabled keeps blocked buttons focusable (keyboard
                       users can tab to them and hear why they're unavailable);
                       the onClick guard already prevents activation.
@@ -377,13 +379,10 @@ function PreviewLab({ initialFont }) {
                         const disabled = status === 'none';
                         const partial  = status === 'partial';
                         const names    = blockingFonts.join(', ');
-                        // Full description for screen readers and keyboard users.
-                        // tooltip (title) is a secondary hint for sighted mouse users only.
-                        const ariaLabel = disabled
-                          ? `Weight ${w} — not supported by ${names}`
-                          : partial
-                            ? `Weight ${w} — ${names} will render at nearest available weight`
-                            : `Weight ${w}`;
+                        // aria-label: weight name only. Restriction detail is in the visible
+                        // note below (aria-describedby) — not duplicated in hidden text.
+                        // title is a secondary hover hint for sighted mouse users only.
+                        const ariaLabel = `Weight ${w}`;
                         const tip = blockingFonts.length
                           ? `${names} ${blockingFonts.length > 1 ? "don't" : "doesn't"} support weight ${w}`
                           : undefined;
@@ -392,6 +391,7 @@ function PreviewLab({ initialFont }) {
                             aria-disabled={disabled ? 'true' : undefined}
                             aria-pressed={disabled ? undefined : active}
                             aria-label={ariaLabel}
+                            aria-describedby={status !== 'ok' ? `weight-note-${w}` : undefined}
                             onClick={() => !disabled && setFontWeight(w)}
                             title={tip}
                             style={{
@@ -421,7 +421,7 @@ function PreviewLab({ initialFont }) {
                         {restricted.map(({ weight:w, status, blockingFonts }) => {
                           const names = blockingFonts.join(', ');
                           return (
-                            <p key={w} style={{ fontSize:9, color:'var(--t4)', lineHeight:1.45, margin:0 }}>
+                            <p key={w} id={`weight-note-${w}`} style={{ fontSize:9, color:'var(--t4)', lineHeight:1.45, margin:0 }}>
                               {status === 'none'
                                 ? <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}</strong> — not supported by {names}</>
                                 : <><strong style={{ fontWeight:500, color:'var(--t3)' }}>{w}*</strong> — {names} will use nearest weight</>
