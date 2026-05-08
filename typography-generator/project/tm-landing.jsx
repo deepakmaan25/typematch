@@ -97,17 +97,17 @@ function Landing({ onStart }) {
               </button>
             </div>
 
-            {/* Feature trust markers */}
-            <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
+            {/* Trust markers — single neutral color so they support the H1 instead of competing with it */}
+            <div style={{ display:'flex', gap:20, flexWrap:'wrap', alignItems:'center' }}>
               {[
-                ['Your collection', 'collections_bookmark', 'var(--purple)'],
-                ['Library matches',  'auto_awesome',         'var(--teal)'],
-                ['Full reasoning',  'verified',             'var(--warm)'],
-              ].map(([l,ic,c])=>(
-                <div key={l} style={{ display:'flex', alignItems:'center', gap:7 }}>
-                  <Icon name={ic} size={14} style={{ color:c }} />
-                  <span style={{ fontSize:12, color:'var(--t3)' }}>{l}</span>
-                </div>
+                'Scored across 8 dimensions',
+                'Curated library of 1,938 families',
+                'Reasoning for every match',
+              ].map((l, i)=>(
+                <React.Fragment key={l}>
+                  {i > 0 && <span aria-hidden="true" style={{ color:'var(--t4)', fontSize:12 }}>·</span>}
+                  <span style={{ fontSize:12, color:'var(--t3)', fontFamily:'var(--font-ui)' }}>{l}</span>
+                </React.Fragment>
               ))}
             </div>
           </div>
@@ -281,33 +281,16 @@ function Landing({ onStart }) {
         </div>
       </section>
 
-      {/* ── Two sources ───────────────────────────────────── */}
-      <section style={{ padding:'0 48px 80px', maxWidth:1140, margin:'0 auto' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-          {[
-            { color:'var(--purple)', bg:'rgba(168,127,255,0.06)', border:'rgba(168,127,255,0.15)', icon:'collections_bookmark', label:'Source 01', title:'From Your Collection', body:'Every recommendation from your library includes exact metadata you added — moods, use cases, readability scores, and brand fit. Completely contextual.' },
-            { color:'var(--teal)',   bg:'rgba(45,212,160,0.05)',  border:'rgba(45,212,160,0.14)',  icon:'auto_awesome',         label:'Source 02', title:'Library Suggestions', body:'Suggestions drawn from a curated open-font library, scored across mood, use case, readability, and brand fit. Always ranked, always explained.' },
-          ].map(s=>(
-            <div key={s.title} style={{ padding:'36px 32px', background:s.bg, border:`1px solid ${s.border}`, borderRadius:'var(--r-xl)' }}>
-              <SectionLabel style={{ color:s.color, marginBottom:14 }}>{s.label}</SectionLabel>
-              <Icon name={s.icon} size={28} style={{ color:s.color, marginBottom:14, display:'block' }} />
-              <h3 style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:700, letterSpacing:'-.02em', color:'var(--t1)', marginBottom:12 }}>{s.title}</h3>
-              <p style={{ fontSize:14, color:'var(--t3)', lineHeight:1.75 }}>{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Final CTA ─────────────────────────────────────── */}
-      <section style={{ padding:'20px 48px 96px', maxWidth:1140, margin:'0 auto' }}>
-        <div style={{ padding:'64px 48px', background:'linear-gradient(135deg, rgba(123,168,255,0.07), rgba(168,127,255,0.05))', border:'1px solid rgba(123,168,255,0.13)', borderRadius:'var(--r-xl)', textAlign:'center' }}>
-          <SectionLabel style={{ textAlign:'center', marginBottom:16 }}>Ready?</SectionLabel>
-          <h2 style={{ fontFamily:'var(--font-display)', fontSize:42, fontWeight:700, letterSpacing:'-.03em', color:'var(--t1)', marginBottom:16, lineHeight:1.1 }}>
-            Your next typeface<br />
-            <span style={{ fontStyle:'italic', fontWeight:300, color:'var(--primary)' }}>is waiting.</span>
-          </h2>
-          <p style={{ fontSize:15, color:'var(--t3)', marginBottom:36, maxWidth:380, margin:'0 auto 36px' }}>Set up your collection in minutes. Start with our sample library if you prefer.</p>
-          <Btn size="lg" onClick={onStart} endIcon="arrow_forward" style={{ padding:'14px 40px', fontSize:15 }}>Get started — it's free</Btn>
+      {/* ── Footer CTA ────────────────────────────────────── */}
+      {/* Quiet close: a single line of supporting copy + the primary action.
+          The hero H1 stays the page's only display headline so it carries the
+          full weight of the "find type that actually fits" promise. */}
+      <section style={{ padding:'24px 48px 80px', maxWidth:1140, margin:'0 auto' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:32, padding:'32px 0', borderTop:'1px solid var(--b1)' }}>
+          <p style={{ fontSize:14, color:'var(--t3)', lineHeight:1.6, maxWidth:520, margin:0 }}>
+            Start with the sample library — set up your own collection when you're ready.
+          </p>
+          <Btn size="md" onClick={onStart} endIcon="arrow_forward" style={{ flexShrink:0 }}>Get started</Btn>
         </div>
       </section>
     </div>

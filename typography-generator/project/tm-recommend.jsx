@@ -649,12 +649,10 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
             {(tab==='all'||tab==='collection') && results.collection.length>0 && (
               <div style={{ marginBottom:tab==='all'?20:0 }}>
                 {tab==='all' && (
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'var(--purple-dim)', border:'1px solid color-mix(in srgb,var(--purple) 22%,transparent)', borderRadius:'var(--r-md)' }}>
-                      <Icon name="collections_bookmark" size={13} style={{ color:'var(--purple)' }} />
-                      <span style={{ fontSize:11, fontWeight:700, color:'var(--purple)', fontFamily:'var(--font-accent)' }}>From Your Library</span>
-                    </div>
-                    <Divider style={{ flex:1 }} />
+                  <div style={{ display:'flex', alignItems:'baseline', gap:14, marginBottom:14 }}>
+                    <SectionLabel>From your library</SectionLabel>
+                    <Divider style={{ flex:1, marginBottom:0 }} />
+                    <span style={{ fontSize:11, color:'var(--t4)', fontFamily:'var(--font-ui)' }}>{results.collection.length}</span>
                   </div>
                 )}
                 {results.collection.map((f,i)=>(
@@ -665,13 +663,13 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
             {(tab==='all'||tab==='ai') && results.ai.length>0 && (
               <div>
                 {tab==='all' && (
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, marginTop:4 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'var(--teal-dim)', border:'1px solid color-mix(in srgb,var(--teal) 20%,transparent)', borderRadius:'var(--r-md)' }}>
-                      <Icon name="auto_awesome" size={13} style={{ color:'var(--teal)' }} />
-                      <span style={{ fontSize:11, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Library Suggestions</span>
-                      <Tooltip text="Surfaced from a curated open-font knowledge library, scored against your brief"><Icon name="info" size={12} style={{ color:'color-mix(in srgb,var(--teal) 50%,transparent)', cursor:'help' }} /></Tooltip>
-                    </div>
-                    <Divider style={{ flex:1 }} />
+                  <div style={{ display:'flex', alignItems:'baseline', gap:14, marginBottom:14, marginTop:4 }}>
+                    <SectionLabel>Library suggestions</SectionLabel>
+                    <Tooltip text="Surfaced from a curated open-font library, scored against your brief">
+                      <Icon name="info" size={12} style={{ color:'var(--t4)', cursor:'help' }} />
+                    </Tooltip>
+                    <Divider style={{ flex:1, marginBottom:0 }} />
+                    <span style={{ fontSize:11, color:'var(--t4)', fontFamily:'var(--font-ui)' }}>{results.ai.length}</span>
                   </div>
                 )}
                 {results.ai.map((f,i)=>(
@@ -694,7 +692,7 @@ function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
 
   return (
     <div onClick={onClick} className="fade-up md3-elevation"
-      style={{ background:active?(isAI?'color-mix(in srgb,var(--teal) 4%,var(--s2))':'color-mix(in srgb,var(--purple) 4%,var(--s2))'):'var(--s2)', border:`1px solid ${active?(isAI?'color-mix(in srgb,var(--teal) 38%,transparent)':'color-mix(in srgb,var(--purple) 38%,transparent)'):'var(--b1)'}`, borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:10, cursor:'pointer', transition:'all .25s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', boxShadow:active?`0 6px 24px color-mix(in srgb, ${color} 18%, transparent)`:'var(--shadow-sm)' }}>
+      style={{ background: active ? 'var(--s3)' : 'var(--s2)', border:`1px solid ${active ? 'var(--b3)' : 'var(--b1)'}`, borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:10, cursor:'pointer', transition:'all .25s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', boxShadow: active ? 'var(--shadow-md)' : 'var(--shadow-sm)' }}>
       <div style={{ padding:'18px 20px' }}>
         <div style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
           <ScoreRing value={font.score} size={50} color={color} strokeWidth={3.5} />
