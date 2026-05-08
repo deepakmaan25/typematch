@@ -1,4 +1,4 @@
-// tm-recommend.jsx v3 — Multi-dimensional scorer + AI library matching + explainability
+// tm-recommend.jsx v3 — Multi-dimensional scorer + library matching + explainability
 const { useState, useEffect, useMemo } = React;
 
 /* ── Scoring engine ─────────────────────────────────────────────────
@@ -148,22 +148,57 @@ function scoreFont(font, query, collection=[]) {
   return { dims, score: Math.min(99, Math.max(40, Math.round(raw))) };
 }
 
+// Composes the "why this fits" sentence shown on each result card.
+//
+// Mirrors the scorer's signals so users see the same evidence the score is
+// computed from. Each clause maps to a real dimension that contributed to the
+// score. For low-completeness fonts (GF heuristic-enriched), appends a quiet
+// "based on category metadata" qualifier so users understand the confidence
+// level without dropping the suggestion entirely.
+//
+// Always returns a substantive sentence when at least one signal hits — never
+// an empty string for results that made it into the top 5.
 function buildWhyText(font, dims, query) {
-  const moods = query.moods||[], useCases = query.useCases||[];
-  const moodHits = moods.filter(m => (font.mood||[]).map(x=>x.toLowerCase()).includes(m.toLowerCase()));
-  const ucHits = useCases.filter(u => (font.useCases||[]).some(uc=>uc.toLowerCase().includes(u.toLowerCase().split(' ')[0])));
+  const moods    = query.moods    || [];
+  const useCases = query.useCases || [];
+  // Mirror useCaseFit's haystack: useCases AND goodFor — same signal the scorer reads.
+  const goodForLc = (font.goodFor||[]).map(g=>g.toLowerCase());
+  const useCaseLc = (font.useCases||[]).map(u=>u.toLowerCase());
+  const haystack  = [...goodForLc, ...useCaseLc].join(' | ');
+  const moodHits  = moods.filter(m => (font.mood||[]).map(x=>x.toLowerCase()).includes(m.toLowerCase()));
+  const ucHits    = useCases.filter(u => haystack.includes(u.toLowerCase().split('&')[0].trim().split(' ')[0]));
+
   const parts = [];
-  if (moodHits.length) parts.push(`Aligns with ${moodHits.slice(0,3).join(', ')}`);
-  if (ucHits.length)   parts.push(`fits use case ${ucHits[0]}`);
-  if (dims.brandContext > 80) parts.push('strong context match for the project type');
-  if (dims.readability > 88 && query.readFirst) parts.push(`high readability (${dims.readability})`);
-  if (dims.screenSuit > 92)  parts.push('exceptional screen performance');
+  if (moodHits.length === 1)        parts.push(`matches the "${moodHits[0]}" mood`);
+  else if (moodHits.length >= 2)    parts.push(`matches ${moodHits.slice(0,3).map(m=>`"${m}"`).join(', ')}`);
+  if (ucHits.length)                parts.push(`covers ${ucHits.slice(0,2).join(' and ')}`);
+  if (dims.brandContext > 80)       parts.push('strong fit for this project context');
+  if (dims.readability > 88 && query.readFirst) parts.push(`high readability (${dims.readability}/100)`);
+  if (dims.screenSuit > 92)         parts.push('exceptional screen performance');
   if (dims.licenseConf >= 95 && query.freeOnly) parts.push('open-source licensed');
-  const sentence = parts.length ? parts.join('. ').replace(/^./,c=>c.toUpperCase())+'.' : '';
+
+  // Capitalize first letter of the joined sentence cleanly.
+  let sentence = '';
+  if (parts.length) {
+    sentence = parts.join(', ');
+    sentence = sentence.charAt(0).toUpperCase() + sentence.slice(1) + '.';
+  }
+
+  // Heuristic-confidence tag for GF entries without curated notes.
+  // Curated/open-library fonts (completeness ≥ 80 or undefined) skip this tag.
+  const isHeuristic = font.source === 'google-fonts' && (font.completeness || 100) < 80;
+  const heuristicNote = isHeuristic ? ' Match drawn from category metadata.' : '';
+
+  // First sentence of curated notes, when available — adds depth for curated fonts.
   const note = (font.notes||'').split('.')[0];
-  return [sentence, note ? note + '.' : ''].filter(Boolean).join(' ');
+  const noteText = note ? ' ' + note + '.' : '';
+
+  return [sentence, noteText, heuristicNote].join('').trim();
 }
 
+// Composes the "caution" line. Surfaces concrete tradeoffs only — never
+// generic disclaimers. Joined with " · " and capped at 2 items so the line
+// stays scannable on the card.
 function buildCautionText(font, dims, query) {
   const cautions = [];
   if (font.avoidFor && font.avoidFor.length) cautions.push(font.avoidFor[0]);
@@ -222,7 +257,7 @@ function RecommendWizard({ collection, onResults }) {
           };
         }).sort((a,b)=>b.score-a.score).slice(0, 5);
 
-        // Score AI library, surface best new suggestions not already in collection.
+        // Score the open-font library, surface best new suggestions not already in collection.
         // Use ALL_FONTS when the GF catalog is ready, else fall back to OPEN_FONT_LIBRARY.
         // The enrichment gate keeps bare GF entries (no mood/contextScore/useCases) out
         // of results until a metadata enrichment pass promotes them.
@@ -557,7 +592,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
   ];
 
   // Phase 3: explicit empty state with clear recovery CTA. Renders once both
-  // collection and AI ranks are empty (e.g., a very narrow brief).
+  // collection and library ranks are empty (e.g., a very narrow brief).
   const totalCount = results.collection.length + results.ai.length;
   if (totalCount === 0) {
     return (

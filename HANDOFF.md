@@ -1,6 +1,6 @@
 # TypeMatch — Handoff / Working Memory
 
-> Last updated: 2026-05-05
+> Last updated: 2026-05-08
 > Live: https://typematch-mu.vercel.app
 > Repo: https://github.com/deepakmaan25/typematch
 > Project files: `typography-generator/project/`
@@ -64,8 +64,8 @@ In rough order. Sequence may shift, but **all of these come before any of the de
 1. ~~**Define the normalized font schema in code**~~ — ✅ Done. `tm-schema.jsx`, `normalizeFont()`, `validateFont()`. All 22 curated fonts valid.
 2. ~~**Google Fonts ingestion pipeline**~~ — ✅ Done. 1938-family snapshot (`tm-google-fonts.json`), `enrichGFEntry()`, `initGFMerge()` IIFE, `window.ALL_FONTS` (1938 total), `tm:catalog-updated` event. Scorer uses GF catalog when ready. Verified 2026-05-05.
 3. **Catalog expansion** — ✅ Resolved by Step 2. GF snapshot provides 1916 enriched entries. `tm-data.jsx` is now the curated seed/override layer.
-4. **Recommendation explainability** — every result card surfaces a "why this works" string. This unblocks the trust problem with the current "AI" label.
-5. **Replace "AI" copy** — UI strings ("Get recommendations · auto_awesome", any "AI" badges) become honest structured-scoring language.
+4. ~~**Recommendation explainability**~~ — ✅ Done. `buildWhyText` rewritten to mirror scorer signals (mood + use-case via `goodFor`+`useCases` haystack), preserve original case, append heuristic-confidence tag for low-completeness GF entries. Honest, scannable.
+5. ~~**Replace "AI" copy**~~ — ✅ Done. Settings: "AI recommendations" → "Library suggestions". Tweak toggle: "AI suggestions" → "Library suggestions". Data sources list rewritten to reflect actual sources. Internal comments cleaned in `tm-data.jsx`, `tm-recommend.jsx`.
 
 Phase 2 (weighted scoring engine, curated pairing cache, Pairing Studio rebuild) and Phase 3 (Supabase/Firebase backend, uploads) follow. See [roadmap.md](roadmap.md).
 
@@ -143,6 +143,8 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 | Preview Lab font load pipeline: async pipeline, weight integrity, a11y polish (3 passes, `tm-preview.jsx` only) | Shipped (2026-05-03) — PR #3 |
 | "AI" copy removed from landing and onboarding surfaces | Shipped (2026-05-03, `dbad554`) — Phase 1 Step 5 done |
 | **Phase 1 Step 3 — GF ingestion pipeline verified and complete** | **Shipped (2026-05-05)** — 1938 families, all enriched, scorer active, DetailPanel null-guards confirmed |
+| **Phase 1 Step 4/5 — Explainability + AI copy cleanup** | **Shipped (2026-05-08)** — `buildWhyText` rewrite, settings/tweak copy, internal comments. Honest structured-scoring language throughout. |
+| **Critical bugfix: pairing-studio `const ALL_FONTS` clobbered window.ALL_FONTS** | **Shipped (2026-05-08)** — Babel transpiles `const` → `var` in classic script mode, leaking to window. Renamed to `PAIRING_STUDIO_FONTS`. Without this fix, GF fonts never appeared in scoring results. |
 | Google Fonts API integration moved to Phase 1 | ✅ Complete |
 | Backend (Supabase/Firebase) planned for Phase 3 | Active |
 | Font upload + Local Font Access moved into scope (Phase 3 / Phase 4) | Active |

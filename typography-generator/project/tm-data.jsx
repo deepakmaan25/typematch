@@ -1,6 +1,6 @@
-// tm-data.jsx v3 — Large curated open-source font library with rich AI context
-// Each font carries dense metadata that the recommender (and any LLM downstream)
-// can use to reason about *why* a typeface fits a given brief.
+// tm-data.jsx v3 — Large curated open-source font library with rich scoring metadata
+// Each font carries dense metadata that the recommender uses to compute
+// dimension scores and to compose the "why this fits" explanation.
 //
 // Schema:
 //   id, name, foundry, classification, subtype
@@ -21,7 +21,7 @@
 //   license             — OFL (Free) | Apache 2.0 (Free) | Commercial — Foundry
 //   languages           — Latin | Latin Extended | Cyrillic + Greek | Pan-European | etc.
 //   pairingWith[]       — known good pairings inside this catalog
-//   goodFor[]           — short bullet list — feeds AI explainability
+//   goodFor[]           — short bullet list — feeds explainability text
 //   avoidFor[]          — what NOT to use this for — anti-recommendation
 //   notes               — long-form rationale
 //   completeness        — 0-100 metadata health
@@ -244,8 +244,8 @@ const SAMPLE_COLLECTION = [
   // ── Loaded for hero/specimens but not in default collection (web suggestions) ──
 ];
 
-// Companion library — a much larger AI knowledge base of open-source fonts
-// the recommender can surface as "AI + Web Suggestions" beyond the user's collection.
+// Companion library — a curated open-source font library the recommender
+// can surface as "Library Suggestions" beyond the user's collection.
 // All OFL/Apache/SIL — explicitly free for commercial use.
 const OPEN_FONT_LIBRARY = [
   {

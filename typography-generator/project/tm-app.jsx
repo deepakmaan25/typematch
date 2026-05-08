@@ -170,7 +170,7 @@ function SettingsView() {
     <div style={{ height:'100%', overflowY:'auto', padding:'28px 28px', maxWidth:600 }}>
       <h2 style={{ fontSize:20, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)', marginBottom:24, letterSpacing:'-.02em' }}>Settings</h2>
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-        {[['AI recommendations','Enable AI-powered suggestions from type knowledge.',ai,setAi],['Web-informed context','Use real-world usage data in recommendations.',web,setWeb],['Open source fonts only','Limit all suggestions to freely licensed typefaces.',open,setOpen]].map(([l,d,v,s])=>(
+        {[['Library suggestions','Surface scored matches from the open-font library alongside fonts in your collection.',ai,setAi],['Context-aware matching','Use project-context affinity scores to refine ranking.',web,setWeb],['Open source fonts only','Limit all suggestions to freely licensed typefaces.',open,setOpen]].map(([l,d,v,s])=>(
           <div key={l} onClick={()=>s(x=>!x)}
             style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 18px', background:'var(--s2)', border:`1px solid ${v?'rgba(123,168,255,0.25)':'var(--b1)'}`, borderRadius:'var(--r-lg)', cursor:'pointer', transition:'all .15s' }}>
             <div style={{ flex:1 }}>
@@ -183,7 +183,7 @@ function SettingsView() {
       </div>
       <div style={{ marginTop:24, padding:'18px 20px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-lg)' }}>
         <SectionLabel style={{ marginBottom:12 }}>Data sources</SectionLabel>
-        {['Google Fonts database','Type community usage data','Foundry metadata feeds','Web analytics integration'].map(s=>(
+        {['Google Fonts catalog (1,938 families)','Curated open-source library','8-dimension scoring engine','License confidence layer'].map(s=>(
           <div key={s} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
             <Icon name="check_circle" size={13} style={{ color:'var(--teal)' }} />
             <span style={{ fontSize:12, color:'var(--t2)' }}>{s}</span>
@@ -217,7 +217,7 @@ function TweaksWrapper({ children }) {
             <TweakSelect id="defaultMode" label="Studio default mode" options={['single','pairing','ui','brand','editorial','typesystem']} />
           </TweakSection>
           <TweakSection label="Features">
-            <TweakToggle id="showAI" label="AI suggestions" />
+            <TweakToggle id="showAI" label="Library suggestions" />
             <TweakToggle id="compactNav" label="Compact navigation" />
           </TweakSection>
         </TweaksPanel>
