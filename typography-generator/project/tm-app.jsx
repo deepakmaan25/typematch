@@ -229,7 +229,7 @@ function TweaksWrapper({ children }) {
 /* ── App root ────────────────────────────────────────────── */
 function App() {
   const [screen,   setScreen]   = useState('landing');
-  const [appView,  setAppView]  = useState('home');
+  const [appView,  setAppView]  = useState('recommend');
   const [collection,setCollection]=useState(window.SAMPLE_COLLECTION);
   const [results,  setResults]  = useState(null);
   const [navHov,   setNavHov]   = useState(null);
@@ -305,8 +305,8 @@ function App() {
     home:       <HomeView collection={collection} onNavigate={navigate} />,
     collection: <Collection collection={collection} setCollection={setCollection} onNavigate={navigate} />,
     addfonts:   <AddFonts collection={collection} onFontAdded={handleFontAdded} />,
-    recommend:  <RecommendWizard collection={collection} onResults={handleResults} />,
-    results:    results ? <Results results={results} onNewSearch={handleNewSearch} onPreview={handlePreview} onSelectFont={openInspector} selectedFontId={inspectorTarget?.id} /> : <RecommendWizard collection={collection} onResults={handleResults} />,
+    recommend:  <BriefComposer collection={collection} onResults={handleResults} />,
+    results:    results ? <Results results={results} onNewSearch={handleNewSearch} onPreview={handlePreview} onSelectFont={openInspector} selectedFontId={inspectorTarget?.id} /> : <BriefComposer collection={collection} onResults={handleResults} />,
     pairing:    <PairingStudio />,
     // Preview route — uses PreviewLab with best available font context.
     // Falls back to a friendly empty state if the module somehow didn't load.

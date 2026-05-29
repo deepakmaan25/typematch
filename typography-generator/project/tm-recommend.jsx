@@ -208,9 +208,23 @@ function buildCautionText(font, dims, query) {
   return cautions.slice(0,2).join(' · ');
 }
 
-/* ── Wizard ──────────────────────────────────────────────── */
-function RecommendWizard({ collection, onResults }) {
-  const [step,        setStep]        = useState(0);
+/* ── Composer section header ─────────────────────────────── */
+function ComposerSection({ label, icon, hint, children, complete }) {
+  return (
+    <div style={{ paddingTop:20, paddingBottom:20, borderBottom:'1px solid var(--b1)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+        <Icon name={icon} size={14} style={{ color: complete ? 'var(--teal)' : 'var(--t3)' }} />
+        <span style={{ fontSize:11, fontWeight:700, color: complete ? 'var(--t2)' : 'var(--t3)', textTransform:'uppercase', letterSpacing:'.06em' }}>{label}</span>
+        {hint && <span style={{ fontSize:11, color:'var(--t4)', marginLeft:4 }}>{hint}</span>}
+        {complete && <Icon name="check_circle" size={13} style={{ color:'var(--teal)', marginLeft:'auto' }} />}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Brief composer (Phase 2) — single-page form ─────────── */
+function BriefComposer({ collection, onResults }) {
   const [projectType, setProjectType] = useState('');
   const [contextKey,  setContextKey]  = useState(null);
   const [moods,       setMoods]       = useState([]);
@@ -220,13 +234,7 @@ function RecommendWizard({ collection, onResults }) {
   const [freeOnly,    setFreeOnly]    = useState(false);
   const [query,       setQuery]       = useState('');
   const [loading,     setLoading]     = useState(false);
-  const [transitioning, setTransitioning] = useState(false);
-  const totalSteps = 4;
 
-  function go(dir) {
-    setTransitioning(true);
-    setTimeout(() => { setStep(s => s + dir); setTransitioning(false); }, 220);
-  }
   function toggleMood(m) { setMoods(p=>p.includes(m)?p.filter(x=>x!==m):p.length<6?[...p,m]:p); }
   function toggleUC(u)   { setUseCases(p=>p.includes(u)?p.filter(x=>x!==u):[...p,u]); }
 
@@ -235,8 +243,7 @@ function RecommendWizard({ collection, onResults }) {
     setContextKey(preset.context);
   }
 
-  // Phase 3: track scoring failures so we can show an inline retry instead of
-  // dead-ending the user. We capture the last query so Retry can re-run it.
+  // Track scoring failures for inline retry.
   const [error, setError] = useState(null);
   const [lastQuery, setLastQuery] = useState(null);
 
@@ -325,106 +332,98 @@ function RecommendWizard({ collection, onResults }) {
   if (loading) return <ResultsLoadingSkeleton />;
   if (error)   return <RecommendErrorState message={error} onRetry={retryRecommend} onBack={() => setError(null)} />;
 
-  const content = [
-    /* 0 — Project type */
-    <div key="pt">
-      <WizardHead step={1} total={totalSteps} title="What's the project?" subtitle="We'll tailor suggestions to your context and industry." />
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
-        {window.PROJECT_TYPES.map(pt=>(
-          <button key={pt} onClick={()=>{setProjectType(pt); setContextKey(null);}}
-            style={{ padding:'13px 16px', borderRadius:'var(--r-lg)', border:`1px solid ${projectType===pt?'color-mix(in srgb,var(--primary) 50%,transparent)':'var(--b1)'}`, background:projectType===pt?'var(--primary-dim)':'var(--s2)', color:projectType===pt?'var(--t1)':'var(--t2)', fontSize:13, cursor:'pointer', textAlign:'left', fontFamily:'var(--font-ui)', display:'flex', alignItems:'center', gap:10 }}>
-            {projectType===pt && <Icon name="check" size={14} style={{ color:'var(--primary)', flexShrink:0 }} />}
-            {pt}
-          </button>
-        ))}
-      </div>
-      <div style={{ marginBottom:20 }}>
-        <SectionLabel style={{ marginBottom:10 }}>Or pick a starter template</SectionLabel>
-        <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
-          {window.RECOMMENDATION_PRESETS.map(p=>(
-            <Chip key={p.id} label={p.label} icon={p.icon} selected={projectType===p.label} onClick={()=>pickPreset(p)} color="neutral" />
-          ))}
-        </div>
-      </div>
-      <WizardFoot canNext={!!projectType} onNext={()=>go(1)} onBack={null} />
-    </div>,
+  const canRun = !!projectType && moods.length > 0 && useCases.length > 0;
 
-    /* 1 — Mood */
-    <div key="mood">
-      <WizardHead step={2} total={totalSteps} title="What mood should it express?" subtitle="Pick up to 6 that resonate. These directly weight mood alignment scores." />
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
-        {window.MOOD_OPTIONS.map(m=>(
-          <Chip key={m} label={m} selected={moods.includes(m)} onClick={()=>toggleMood(m)} color="primary" />
-        ))}
-      </div>
-      {moods.length>0 && <div style={{ padding:'8px 14px', background:'var(--primary-dim)', border:'1px solid color-mix(in srgb,var(--primary) 22%,transparent)', borderRadius:'var(--r-md)', marginBottom:16 }}>
-        <span style={{ fontSize:12, color:'var(--primary)' }}>Selected: {moods.join(' · ')}</span>
-      </div>}
-      <div style={{ marginBottom:20 }}>
-        <RangeSlider label="Familiarity vs. Distinctiveness" value={familiarity} onChange={setFamiliarity} leftLabel="Safe & recognisable" rightLabel="Bold & distinctive" />
-      </div>
-      <WizardFoot canNext={moods.length>0} onNext={()=>go(1)} onBack={()=>go(-1)} />
-    </div>,
-
-    /* 2 — Use cases */
-    <div key="uc">
-      <WizardHead step={3} total={totalSteps} title="Where will it be used?" subtitle="All selections feed into use-case fit scoring." />
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
-        {window.USE_CASES.map(u=>(
-          <Chip key={u} label={u} selected={useCases.includes(u)} onClick={()=>toggleUC(u)} color="collection" />
-        ))}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-        <ToggleRow label="Prioritise screen readability" value={readFirst} onChange={setReadFirst} />
-        <ToggleRow label="Open-source / free fonts only" value={freeOnly} onChange={setFreeOnly} />
-      </div>
-      <WizardFoot canNext={useCases.length>0} onNext={()=>go(1)} onBack={()=>go(-1)} />
-    </div>,
-
-    /* 3 — Natural language + run */
-    <div key="run">
-      <WizardHead step={4} total={totalSteps} title="Anything to add?" subtitle="Optional context in your own words. Describe constraints, references, or feel." />
-      <textarea value={query} onChange={e=>setQuery(e.target.value)} rows={4} placeholder="e.g. 'Should feel like Linear or Pitch — technical but refined. Works at tiny sizes in a data-dense UI.'" style={{ marginBottom:14 }} />
-      <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:24 }}>
-        {['Works at small sizes','Feels premium but approachable','Distinctive without being loud','Print-quality at display size','Reads well at body sizes'].map(s=>(
-          <Chip key={s} label={s} onClick={()=>setQuery(s)} size="sm" color="neutral" />
-        ))}
-      </div>
-      <div style={{ padding:'16px 18px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-lg)', marginBottom:24 }}>
-        <SectionLabel style={{ marginBottom:8 }}>Summary</SectionLabel>
-        <p style={{ fontSize:13, color:'var(--t2)', lineHeight:1.7 }}>
-          Finding a typeface for a <strong style={{ color:'var(--primary)' }}>{projectType||'—'}</strong> that feels <strong style={{ color:'var(--primary)' }}>{moods.slice(0,3).join(', ')||'—'}</strong>, for use in <strong style={{ color:'var(--purple)' }}>{useCases.slice(0,2).join(', ')||'—'}</strong>.
-          {familiarity > 60 ? ' Skewing distinctive.' : familiarity < 40 ? ' Skewing familiar.' : ''}
-          {freeOnly ? ' Open-source only.' : ''}
-          {readFirst ? ' Screen-first.' : ''}
-        </p>
-      </div>
-      <div style={{ display:'flex', gap:10 }}>
-        <Btn variant="ghost" onClick={()=>go(-1)}>Back</Btn>
-        <Btn onClick={runRecommend} endIcon="auto_awesome" style={{ flex:1, justifyContent:'center' }}>Get recommendations</Btn>
-      </div>
-    </div>,
-  ];
+  // Live summary — updates as user fills in the form
+  const summaryParts = [];
+  if (projectType) summaryParts.push(<span key="pt">for <strong style={{ color:'var(--primary)', fontWeight:600 }}>{projectType}</strong></span>);
+  if (moods.length)    summaryParts.push(<span key="m"> · <strong style={{ color:'var(--primary)', fontWeight:600 }}>{moods.slice(0,3).join(', ')}</strong></span>);
+  if (useCases.length) summaryParts.push(<span key="uc"> · <strong style={{ color:'var(--purple)', fontWeight:600 }}>{useCases.slice(0,2).join(', ')}</strong></span>);
+  if (familiarity > 60) summaryParts.push(<span key="fam" style={{ color:'var(--t3)' }}> · distinctive</span>);
+  else if (familiarity < 40) summaryParts.push(<span key="fam" style={{ color:'var(--t3)' }}> · familiar</span>);
+  if (freeOnly) summaryParts.push(<span key="free" style={{ color:'var(--t3)' }}> · OFL only</span>);
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
-      <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', flexShrink:0 }}>
-        <div style={{ height:2, background:'var(--b1)', borderRadius:2, overflow:'hidden', marginBottom:12 }}>
-          <div style={{ height:'100%', background:'linear-gradient(90deg,var(--primary),var(--purple))', width:`${((step+1)/totalSteps)*100}%`, transition:'width .5s var(--ease-emphasized,cubic-bezier(.2,0,0,1))' }} />
+
+      {/* ── Header ── */}
+      <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', flexShrink:0, display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ flex:1 }}>
+          <h1 style={{ fontFamily:'var(--font-display)', fontSize:19, fontWeight:700, letterSpacing:'-.02em', color:'var(--t1)', lineHeight:1.2 }}>Brief</h1>
+          <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>Describe your project — get scored matches instantly</p>
         </div>
-        <div style={{ display:'flex', gap:20 }}>
-          {['Project','Mood','Use cases','Details'].map((l,i)=>(
-            <div key={l} style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <div style={{ width:18, height:18, borderRadius:'50%', background:i<step?'var(--teal)':i===step?'var(--primary)':'var(--b2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {i<step ? <Icon name="check" size={10} style={{ color:'var(--on-primary)' }} /> : <span style={{ fontSize:9, color:i===step?'var(--on-primary)':'var(--t3)', fontWeight:700 }}>{i+1}</span>}
-              </div>
-              <span style={{ fontSize:11, color:i===step?'var(--t1)':'var(--t3)', fontWeight:i===step?600:400 }}>{l}</span>
-            </div>
+        <div style={{ display:'flex', gap:4 }}>
+          {[!!projectType, moods.length>0, useCases.length>0].map((done,i) => (
+            <div key={i} style={{ width:20, height:4, borderRadius:2, background: done ? 'var(--primary)' : 'var(--b2)', transition:'background .2s' }} />
           ))}
         </div>
+        <Btn onClick={runRecommend} disabled={!canRun} endIcon="auto_awesome" size="sm">Find matches</Btn>
       </div>
-      <div style={{ flex:1, overflowY:'auto', padding:'36px 24px', opacity:transitioning?0:1, transform:transitioning?'translateY(8px)':'none', transition:'all .22s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', maxWidth:680 }}>
-        {content[step]}
+
+      {/* ── Scrollable form ── */}
+      <div style={{ flex:1, overflowY:'auto', padding:'0 24px 32px', maxWidth:700 }}>
+
+        {/* §1 Project */}
+        <ComposerSection label="Project" icon="category" hint="What are you building?" complete={!!projectType}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7, marginBottom:14 }}>
+            {(window.PROJECT_TYPES||[]).map(pt=>(
+              <button key={pt} onClick={()=>{setProjectType(pt); setContextKey(null);}}
+                style={{ padding:'10px 14px', borderRadius:'var(--r-md)', border:`1px solid ${projectType===pt?'color-mix(in srgb,var(--primary) 45%,transparent)':'var(--b1)'}`, background:projectType===pt?'var(--primary-dim)':'var(--s2)', color:projectType===pt?'var(--t1)':'var(--t2)', fontSize:12, cursor:'pointer', textAlign:'left', fontFamily:'var(--font-ui)', display:'flex', alignItems:'center', gap:8, transition:'all .12s' }}>
+                {projectType===pt && <Icon name="check" size={12} style={{ color:'var(--primary)', flexShrink:0 }} />}
+                {pt}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {(window.RECOMMENDATION_PRESETS||[]).map(p=>(
+              <Chip key={p.id} label={p.label} icon={p.icon} selected={projectType===p.label} onClick={()=>pickPreset(p)} color="neutral" size="sm" />
+            ))}
+          </div>
+        </ComposerSection>
+
+        {/* §2 Mood */}
+        <ComposerSection label="Mood & tone" icon="palette" hint="pick up to 6" complete={moods.length>0}>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+            {(window.MOOD_OPTIONS||[]).map(m=>(
+              <Chip key={m} label={m} selected={moods.includes(m)} onClick={()=>toggleMood(m)} color="primary" size="sm" />
+            ))}
+          </div>
+          <RangeSlider label="Familiarity vs. Distinctiveness" value={familiarity} onChange={setFamiliarity} leftLabel="Safe" rightLabel="Distinctive" />
+        </ComposerSection>
+
+        {/* §3 Use cases */}
+        <ComposerSection label="Use cases" icon="text_fields" hint="Where will it appear?" complete={useCases.length>0}>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+            {(window.USE_CASES||[]).map(u=>(
+              <Chip key={u} label={u} selected={useCases.includes(u)} onClick={()=>toggleUC(u)} color="collection" size="sm" />
+            ))}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <ToggleRow label="Prioritise screen readability" value={readFirst} onChange={setReadFirst} />
+            <ToggleRow label="Open-source / free only" value={freeOnly} onChange={setFreeOnly} />
+          </div>
+        </ComposerSection>
+
+        {/* §4 Context (optional) */}
+        <ComposerSection label="Context" icon="notes" hint="optional" complete={!!query.trim()}>
+          <textarea value={query} onChange={e=>setQuery(e.target.value)} rows={3}
+            placeholder="e.g. 'Should feel like Linear or Pitch — technical but refined. Works at tiny sizes in a data-dense UI.'"
+            style={{ marginBottom:10 }} />
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {['Works at small sizes','Feels premium but approachable','Distinctive without being loud','Reads well at body sizes'].map(s=>(
+              <Chip key={s} label={s} onClick={()=>setQuery(s)} size="sm" color="neutral" />
+            ))}
+          </div>
+        </ComposerSection>
+
+        {/* ── Action row ── */}
+        <div style={{ paddingTop:20, display:'flex', alignItems:'center', gap:14 }}>
+          <p style={{ flex:1, fontSize:12, color:'var(--t3)', lineHeight:1.5 }}>
+            {summaryParts.length ? summaryParts : 'Select project type, mood, and use cases to find matches'}
+          </p>
+          <Btn onClick={runRecommend} disabled={!canRun} endIcon="auto_awesome">Find matches</Btn>
+        </div>
+
       </div>
     </div>
   );
@@ -433,29 +432,11 @@ function RecommendWizard({ collection, onResults }) {
 function ToggleRow({ label, value, onChange }) {
   return (
     <div onClick={()=>onChange(!value)}
-      style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', background:'var(--s2)', border:`1px solid ${value?'color-mix(in srgb,var(--primary) 28%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', cursor:'pointer' }}>
+      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--s2)', border:`1px solid ${value?'color-mix(in srgb,var(--primary) 28%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', cursor:'pointer' }}>
       <div style={{ width:32, height:18, borderRadius:'var(--r-pill)', background:value?'var(--primary)':'var(--b2)', position:'relative', flexShrink:0, transition:'background .2s' }}>
         <div style={{ position:'absolute', width:12, height:12, borderRadius:'50%', background:'#fff', top:3, left:value?17:3, transition:'left .2s' }} />
       </div>
       <span style={{ fontSize:12, color:'var(--t2)' }}>{label}</span>
-    </div>
-  );
-}
-
-function WizardHead({ step, total, title, subtitle }) {
-  return (
-    <div style={{ marginBottom:26 }}>
-      <SectionLabel style={{ marginBottom:8 }}>Step {step} of {total}</SectionLabel>
-      <h2 style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:700, letterSpacing:'-.02em', color:'var(--t1)', marginBottom:7, lineHeight:1.15 }}>{title}</h2>
-      <p style={{ fontSize:13, color:'var(--t3)', lineHeight:1.6 }}>{subtitle}</p>
-    </div>
-  );
-}
-function WizardFoot({ canNext, onNext, onBack }) {
-  return (
-    <div style={{ display:'flex', gap:10 }}>
-      {onBack && <Btn variant="ghost" onClick={onBack}>Back</Btn>}
-      <Btn onClick={onNext} disabled={!canNext} endIcon="arrow_forward">Continue</Btn>
     </div>
   );
 }
