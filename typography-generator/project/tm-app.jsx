@@ -7,7 +7,7 @@ const { useState, useEffect } = React;
 const NAV_ITEMS = [
   { id:'home',       icon:'home',                 label:'Home' },
   { id:'recommend',  icon:'auto_awesome',         label:'Brief' },
-  { id:'pairing',    icon:'tune',                 label:'Pairings' },
+  { id:'pairing',    icon:'compare',              label:'Pairings' },
   { id:'preview',    icon:'menu_book',            label:'Preview' },
   { id:'collection', icon:'collections_bookmark', label:'Library' },
   { id:'addfonts',   icon:'add_circle',           label:'Add Fonts' },
@@ -54,7 +54,7 @@ function HomeView({ collection, onNavigate }) {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10, alignItems:'flex-end' }}>
             <Btn onClick={()=>onNavigate('recommend')} endIcon="auto_awesome">Find a match</Btn>
-            <Btn variant="tonal" size="sm" onClick={()=>onNavigate('pairing')} startIcon="tune">Open in Studio</Btn>
+            <Btn variant="tonal" size="sm" onClick={()=>onNavigate('pairing')} startIcon="compare">Open in Pairings</Btn>
           </div>
         </div>
         {/* Font dots */}
@@ -77,7 +77,7 @@ function HomeView({ collection, onNavigate }) {
             style={{ animationDelay:`${i*.06}s`, padding:'18px 20px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-xl)', cursor:'default', position:'relative', overflow:'hidden' }}>
             <div style={{ position:'absolute', top:0, right:0, width:80, height:80, background:`radial-gradient(circle, color-mix(in srgb,${s.c} 18%,transparent) 0%, transparent 70%)`, pointerEvents:'none' }} />
             <Icon name={s.icon} size={18} style={{ color:s.c, marginBottom:8, display:'block', position:'relative' }} />
-            <div style={{ fontSize:28, fontWeight:800, color:s.c, fontFamily:'var(--font-accent)', marginBottom:3, lineHeight:1, position:'relative' }}>{s.v}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:s.c, fontFamily:'var(--font-display)', marginBottom:3, lineHeight:1, position:'relative' }}>{s.v}</div>
             <div style={{ fontSize:11, color:'var(--t4)', lineHeight:1.4, position:'relative' }}>{s.l}</div>
           </div>
         ))}
@@ -91,7 +91,7 @@ function HomeView({ collection, onNavigate }) {
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {[
               { icon:'auto_awesome',         color:'var(--primary)', bg:'var(--primary-dim)',  label:'New recommendation',   sub:'Describe your need, get matches.',       action:'recommend' },
-              { icon:'tune',                  color:'var(--teal)',    bg:'var(--teal-dim)',     label:'Open Pairing Studio',  sub:'Test and compose font combinations.',    action:'pairing' },
+              { icon:'compare',               color:'var(--teal)',    bg:'var(--teal-dim)',     label:'Open Pairings',        sub:'Test and compose font combinations.',    action:'pairing' },
               { icon:'add_circle',            color:'var(--purple)',  bg:'var(--purple-dim)',   label:'Add fonts',            sub:'Upload, import, or detect local fonts.', action:'addfonts' },
             ].map(a=>(
               <div key={a.action} onClick={()=>onNavigate(a.action)}
@@ -287,7 +287,7 @@ function App() {
   function handleOnboardComplete(dest) { setScreen('app'); setAppView(dest); showSnack('Welcome to TypeMatch!'); }
   function handleResults(r) { setResults(r); setAppView('results'); showSnack(`Found ${r.collection.length + r.ai.length} matches`, 'success'); }
   function handleNewSearch() { setResults(null); setAppView('recommend'); }
-  function handlePreview(font) { setAppView('pairing'); if (font?.name) showSnack(`Loaded ${font.name} in Pairing Studio`); }
+  function handlePreview(font) { setAppView('pairing'); if (font?.name) showSnack(`Opened ${font.name} in Pairings`); }
   function handleFontAdded(f) {
     const newFont = { id:Date.now(), name:f.name, classification:f.classification||'Sans-serif', subtype:f.subtype||'', fontFamily:`'${f.name}',sans-serif`, mood:f.tags||[], personality:[], useCases:f.useCases||[], readability:f.readability||75, screenSuitability:f.screenSuitability||75, printSuitability:f.printSuitability||70, brandFit:[], contrast:'Medium', variable:false, license:f.license||'Unknown', languages:'Latin', pairingWith:[], notes:f.notes||'', completeness:f.completeness||60, addedDate:new Date().toISOString().split('T')[0], previewText:f.name };
     setCollection(c=>[...c, newFont]);
@@ -339,11 +339,11 @@ function App() {
             {appView!=='recommend'&&appView!=='results' && (
               <Btn size="sm" startIcon="auto_awesome" onClick={()=>navigate('recommend')}>Recommend</Btn>
             )}
-            <Tooltip text="Pairing Studio">
+            <Tooltip text="Pairings">
               <button onClick={()=>navigate('pairing')} style={{ width:30, height:30, borderRadius:'var(--r-md)', background:'var(--s2)', border:'1px solid var(--b1)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--t3)' }}
                 onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.borderColor='var(--b2)';}}
                 onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='var(--b1)';}}>
-                <Icon name="tune" size={15} />
+                <Icon name="compare" size={15} />
               </button>
             </Tooltip>
             <ThemeToggle isDark={isDark} onToggle={toggleTheme} />

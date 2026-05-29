@@ -17,11 +17,11 @@ function FontCard({ font, onSelect, selected, onPreview }) {
             {font.variable && <Badge label="Variable" color="primary" dot />}
           </div>
           <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-            <Tooltip text="Preview in Pairing Studio">
+            <Tooltip text="Open in Pairings">
               <button onClick={e=>{e.stopPropagation();onPreview&&onPreview(font);}} style={{ width:28, height:28, borderRadius:'var(--r-md)', border:'1px solid var(--b2)', background:'var(--s3)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--t3)', transition:'all .15s' }}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--b3)';e.currentTarget.style.color='var(--t1)';}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--b2)';e.currentTarget.style.color='var(--t3)';}}>
-                <Icon name="tune" size={13} />
+                <Icon name="compare" size={13} />
               </button>
             </Tooltip>
             <button onClick={e=>{e.stopPropagation();onSelect&&onSelect(font.id);}}
@@ -51,7 +51,7 @@ function FontCard({ font, onSelect, selected, onPreview }) {
 
         {/* Score bars */}
         <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-          {[['Readability',font.readability,'var(--primary)'],['Screen',font.screenSuitability,'var(--purple)'],['Print',font.printSuitability,'var(--teal)']].map(([l,v,c])=>(
+          {[['Readability',font.readability,'var(--primary)'],['Screen',font.screenSuitability,'var(--primary)'],['Print',font.printSuitability,'var(--primary)']].map(([l,v,c])=>(
             <div key={l} style={{ display:'flex', alignItems:'center', gap:10 }}>
               <span style={{ fontSize:10, color:'var(--t4)', width:64, flexShrink:0, fontFamily:'var(--font-accent)', letterSpacing:'.04em', textTransform:'uppercase' }}>{l}</span>
               <div style={{ flex:1 }}><ProgressBar value={v} color={c} height={3} /></div>
@@ -184,7 +184,7 @@ function Collection({ collection, setCollection, onNavigate }) {
       {/* Stats */}
       <div style={{ padding:'8px 24px', display:'flex', gap:24, borderBottom:'1px solid var(--b1)', flexShrink:0 }}>
         {[
-          [`${collection.length} fonts`,'in collection','var(--purple)'],
+          [`${collection.length} fonts`,'in library','var(--primary)'],
           [`${avgComp}%`,'avg completeness',avgComp>=85?'var(--teal)':'var(--warm)'],
           [`${collection.filter(f=>f.variable).length}`,'variable','var(--primary)'],
         ].map(([v,l,c])=>(
@@ -196,7 +196,7 @@ function Collection({ collection, setCollection, onNavigate }) {
         {selected.length>0 && (
           <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center' }}>
             <span style={{ fontSize:12, color:'var(--t3)' }}>{selected.length} selected</span>
-            <Btn variant="tonal" size="sm" onClick={()=>onNavigate('pairing')}>Open in Studio</Btn>
+            <Btn variant="tonal" size="sm" startIcon="compare" onClick={()=>onNavigate('pairing')}>Open in Pairings</Btn>
             <Btn variant="ghost" size="sm" onClick={()=>setSelected([])}>Clear</Btn>
           </div>
         )}
