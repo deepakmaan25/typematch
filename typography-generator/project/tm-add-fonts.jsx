@@ -167,7 +167,7 @@ function AddFonts({ collection, onFontAdded, onClose }) {
               onDrop={handleFileDrop}
               onClick={()=>fileInputRef.current?.click()}
               className={uploadState==='dragging' ? 'drop-active' : ''}
-              style={{ border:`2px dashed ${uploadState==='error' ? '#F87171' : uploadState==='dragging' ? 'var(--primary)' : 'var(--b3)'}`, borderRadius:'var(--r-xl)', padding:'48px 32px', textAlign:'center', cursor:'pointer', background: uploadState==='error' ? 'rgba(248,113,113,0.05)' : uploadState==='dragging' ? 'var(--primary-dim)' : 'var(--s2)', transition:'all .2s' }}>
+              style={{ border:`2px dashed ${uploadState==='error' ? 'var(--danger)' : uploadState==='dragging' ? 'var(--primary)' : 'var(--b3)'}`, borderRadius:'var(--r-xl)', padding:'48px 32px', textAlign:'center', cursor:'pointer', background: uploadState==='error' ? 'color-mix(in srgb, var(--danger) 5%, transparent)' : uploadState==='dragging' ? 'var(--primary-dim)' : 'var(--s2)', transition:'all .2s' }}>
               <input ref={fileInputRef} type="file" accept=".otf,.ttf,.woff,.woff2" style={{ display:'none' }} onChange={handleFileDrop} />
               {uploadState === 'processing' ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14 }}>
@@ -176,8 +176,8 @@ function AddFonts({ collection, onFontAdded, onClose }) {
                 </div>
               ) : uploadState === 'error' ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
-                  <Icon name="error_outline" size={36} style={{ color:'#F87171' }} />
-                  <p style={{ fontSize:14, color:'#F87171', fontWeight:500 }}>{uploadedFont?.error}</p>
+                  <Icon name="error_outline" size={36} style={{ color:'var(--danger)' }} />
+                  <p style={{ fontSize:14, color:'var(--danger)', fontWeight:500 }}>{uploadedFont?.error}</p>
                   <Btn variant="ghost" size="sm" onClick={e=>{e.stopPropagation();setUploadState('idle');setUploadedFont(null);}}>Try again</Btn>
                 </div>
               ) : (
@@ -212,7 +212,7 @@ function AddFonts({ collection, onFontAdded, onClose }) {
                 <div style={{ padding:'24px 20px', background:'var(--bg)', borderRadius:'var(--r-lg)', marginBottom:20, fontFamily:uploadedFont.fontFamily, fontSize:32, fontWeight:700, color:'var(--t1)', lineHeight:1.2 }}>
                   Typography in motion
                 </div>
-                <div style={{ display:'flex', gap:10, padding:'10px 14px', background:'rgba(255,144,112,0.07)', border:'1px solid rgba(255,144,112,0.2)', borderRadius:'var(--r-md)', marginBottom:20 }}>
+                <div style={{ display:'flex', gap:10, padding:'10px 14px', background:'color-mix(in srgb, var(--warm) 7%, transparent)', border:'1px solid color-mix(in srgb, var(--warm) 20%, transparent)', borderRadius:'var(--r-md)', marginBottom:20 }}>
                   <Icon name="info" size={15} style={{ color:'var(--warm)', flexShrink:0, marginTop:1 }} />
                   <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.55 }}>Please verify you have the correct license to use this font commercially. TypeMatch does not verify font licenses.</p>
                 </div>
@@ -258,7 +258,7 @@ function AddFonts({ collection, onFontAdded, onClose }) {
               </div>
             </div>
             {gfSelected.length > 0 && (
-              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 16px', background:'var(--primary-dim)', border:'1px solid rgba(123,168,255,0.25)', borderRadius:'var(--r-md)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 16px', background:'var(--primary-dim)', border:'1px solid color-mix(in srgb, var(--primary) 25%, transparent)', borderRadius:'var(--r-md)' }}>
                 <span style={{ fontSize:13, color:'var(--primary)', fontWeight:500, flex:1 }}>{gfSelected.length} font{gfSelected.length>1?'s':''} selected</span>
                 <Btn size="sm" loading={gfAdding} onClick={addGoogleFonts} startIcon="add">Add to collection</Btn>
                 <Btn variant="text" size="sm" onClick={()=>setGfSelected([])}>Clear</Btn>
@@ -270,7 +270,7 @@ function AddFonts({ collection, onFontAdded, onClose }) {
                 const inCollection = collection.some(c=>c.name===f.name);
                 return (
                   <div key={f.name} onClick={()=>!inCollection&&toggleGfFont(f.name)}
-                    style={{ padding:'16px 18px', background:'var(--s2)', borderRadius:'var(--r-lg)', border:`1px solid ${sel?'rgba(123,168,255,0.45)':inCollection?'rgba(45,212,160,0.2)':'var(--b1)'}`, cursor:inCollection?'default':'pointer', transition:'all .15s', opacity:inCollection?.7:1 }}>
+                    style={{ padding:'16px 18px', background:'var(--s2)', borderRadius:'var(--r-lg)', border:`1px solid ${sel?'color-mix(in srgb, var(--primary) 45%, transparent)':inCollection?'color-mix(in srgb, var(--teal) 20%, transparent)':'var(--b1)'}`, cursor:inCollection?'default':'pointer', transition:'all .15s', opacity:inCollection?.7:1 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                         <Badge label={f.category} color="neutral" />
@@ -296,14 +296,14 @@ function AddFonts({ collection, onFontAdded, onClose }) {
           <div style={{ maxWidth:580, margin:'0 auto' }}>
             {localState === 'idle' && (
               <div style={{ textAlign:'center', padding:'48px 32px', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
-                <div style={{ width:72, height:72, borderRadius:'50%', background:'var(--primary-dim)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid rgba(123,168,255,0.2)' }}>
+                <div style={{ width:72, height:72, borderRadius:'50%', background:'var(--primary-dim)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid color-mix(in srgb, var(--primary) 20%, transparent)' }}>
                   <Icon name="computer" size={32} style={{ color:'var(--primary)' }} />
                 </div>
                 <div>
                   <h3 style={{ fontSize:18, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)', marginBottom:10 }}>Access your local fonts</h3>
                   <p style={{ fontSize:14, color:'var(--t3)', lineHeight:1.7, maxWidth:400 }}>TypeMatch can read fonts installed on your computer. Your browser will ask for permission — no fonts are ever uploaded.</p>
                 </div>
-                <div style={{ padding:'14px 18px', background:'rgba(123,168,255,0.06)', border:'1px solid rgba(123,168,255,0.15)', borderRadius:'var(--r-lg)', textAlign:'left', maxWidth:400, width:'100%' }}>
+                <div style={{ padding:'14px 18px', background:'var(--primary-dim)', border:'1px solid color-mix(in srgb, var(--primary) 15%, transparent)', borderRadius:'var(--r-lg)', textAlign:'left', maxWidth:400, width:'100%' }}>
                   <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>⚠️ Local Font Access API is supported in <strong>Chrome 103+</strong> on desktop. Safari and Firefox do not yet support this feature.</p>
                 </div>
                 <Btn onClick={requestLocalFonts} startIcon="lock_open">Allow access to local fonts</Btn>
@@ -317,7 +317,7 @@ function AddFonts({ collection, onFontAdded, onClose }) {
             )}
             {localState === 'denied' && (
               <div style={{ textAlign:'center', padding:48, display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
-                <Icon name="block" size={40} style={{ color:'#F87171' }} />
+                <Icon name="block" size={40} style={{ color:'var(--danger)' }} />
                 <div>
                   <h3 style={{ fontSize:17, fontWeight:600, color:'var(--t1)', marginBottom:8 }}>Local font access unavailable</h3>
                   <p style={{ fontSize:13, color:'var(--t3)', lineHeight:1.65, maxWidth:360 }}>This browser doesn't support Local Font Access, or permission was denied. Try Chrome 103+ on desktop, or upload fonts manually.</p>
@@ -338,9 +338,9 @@ function AddFonts({ collection, onFontAdded, onClose }) {
                     const sel = localSelected.includes(f.name);
                     return (
                       <div key={f.name} onClick={()=>setLocalSelected(s=>s.includes(f.name)?s.filter(n=>n!==f.name):[...s,f.name])}
-                        style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 14px', borderRadius:'var(--r-md)', border:`1px solid ${sel?'rgba(123,168,255,0.35)':'var(--b1)'}`, background:sel?'var(--primary-dim)':'var(--s2)', cursor:'pointer', transition:'all .15s' }}>
+                        style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 14px', borderRadius:'var(--r-md)', border:`1px solid ${sel?'color-mix(in srgb, var(--primary) 35%, transparent)':'var(--b1)'}`, background:sel?'var(--primary-dim)':'var(--s2)', cursor:'pointer', transition:'all .15s' }}>
                         <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${sel?'var(--primary)':'var(--b3)'}`, background:sel?'var(--primary)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
-                          {sel && <Icon name="check" size={11} style={{ color:'#09090F' }} />}
+                          {sel && <Icon name="check" size={11} style={{ color:'var(--on-primary)' }} />}
                         </div>
                         <div style={{ fontFamily:`'${f.name}', sans-serif`, fontSize:16, color:'var(--t1)', flex:1 }}>{f.name}</div>
                         <span style={{ fontSize:11, color:'var(--t3)' }}>{f.style||'Regular'}</span>

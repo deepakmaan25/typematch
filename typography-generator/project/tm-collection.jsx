@@ -7,7 +7,7 @@ function FontCard({ font, onSelect, selected, onPreview }) {
   const pctColor = pct >= 90 ? 'var(--teal)' : pct >= 75 ? 'var(--primary)' : 'var(--warm)';
 
   return (
-    <div style={{ background:'var(--s2)', borderRadius:'var(--r-xl)', border:`1px solid ${selected?'rgba(168,127,255,0.4)':'var(--b1)'}`, overflow:'hidden', transition:'all .2s cubic-bezier(.4,0,.2,1)', boxShadow:selected?'0 4px 20px rgba(168,127,255,0.12)':'var(--shadow-sm)' }}>
+    <div style={{ background:'var(--s2)', borderRadius:'var(--r-xl)', border:`1px solid ${selected?'color-mix(in srgb, var(--purple) 40%, transparent)':'var(--b1)'}`, overflow:'hidden', transition:'all .2s cubic-bezier(.4,0,.2,1)', boxShadow:selected?'0 4px 20px color-mix(in srgb, var(--purple) 12%, transparent)':'var(--shadow-sm)' }}>
       {/* Font specimen header */}
       <div style={{ padding:'24px 22px 18px', cursor:'pointer' }} onClick={()=>setExpanded(e=>!e)}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
@@ -25,7 +25,7 @@ function FontCard({ font, onSelect, selected, onPreview }) {
               </button>
             </Tooltip>
             <button onClick={e=>{e.stopPropagation();onSelect&&onSelect(font.id);}}
-              style={{ padding:'3px 10px', borderRadius:'var(--r-sm)', border:`1px solid ${selected?'rgba(168,127,255,0.45)':'var(--b2)'}`, background:selected?'var(--purple-dim)':'transparent', color:selected?'var(--purple)':'var(--t3)', fontSize:10, cursor:'pointer', transition:'all .15s', fontFamily:'var(--font-ui)', fontWeight:600, letterSpacing:'.04em', textTransform:'uppercase' }}>
+              style={{ padding:'3px 10px', borderRadius:'var(--r-sm)', border:`1px solid ${selected?'color-mix(in srgb, var(--purple) 45%, transparent)':'var(--b2)'}`, background:selected?'var(--purple-dim)':'transparent', color:selected?'var(--purple)':'var(--t3)', fontSize:10, cursor:'pointer', transition:'all .15s', fontFamily:'var(--font-ui)', fontWeight:600, letterSpacing:'.04em', textTransform:'uppercase' }}>
               {selected?'Selected':'Compare'}
             </button>
           </div>
@@ -93,11 +93,11 @@ function FontCard({ font, onSelect, selected, onPreview }) {
               {font.pairingWith?.map(p=><Chip key={p} label={p} size="sm" color="primary" />)}
             </div>
           </div>
-          <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, padding:'10px 14px', background:'var(--bg)', borderRadius:'var(--r-md)', borderLeft:'3px solid rgba(123,168,255,0.4)' }}>
+          <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, padding:'10px 14px', background:'var(--bg)', borderRadius:'var(--r-md)', borderLeft:`3px solid color-mix(in srgb, var(--primary) 40%, transparent)` }}>
             {font.notes}
           </div>
           {pct < 85 && (
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, padding:'8px 12px', background:'rgba(255,144,112,0.07)', border:'1px solid rgba(255,144,112,0.2)', borderRadius:'var(--r-md)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, padding:'8px 12px', background:'color-mix(in srgb, var(--warm) 7%, transparent)', border:'1px solid color-mix(in srgb, var(--warm) 20%, transparent)', borderRadius:'var(--r-md)' }}>
               <Icon name="warning" size={14} style={{ color:'var(--warm)' }} />
               <span style={{ fontSize:12, color:'var(--t2)' }}>Metadata {pct}% complete — enriching improves match quality.</span>
               <button style={{ marginLeft:'auto', fontSize:11, color:'var(--warm)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', fontFamily:'var(--font-ui)', fontWeight:500 }}>Complete</button>
@@ -140,9 +140,9 @@ function Collection({ collection, setCollection, onNavigate }) {
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
       {/* Health banner */}
       {incomplete>0 && (
-        <div style={{ padding:'9px 24px', background:'rgba(255,144,112,0.07)', borderBottom:'1px solid rgba(255,144,112,0.14)', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <div style={{ padding:'9px 24px', background:'color-mix(in srgb, var(--warm) 7%, transparent)', borderBottom:'1px solid color-mix(in srgb, var(--warm) 14%, transparent)', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
           <Icon name="warning" size={14} style={{ color:'var(--warm)' }} />
-          <span style={{ fontSize:12, color:'rgba(255,144,112,0.85)' }}>{incomplete} font{incomplete>1?'s':''} have incomplete metadata.</span>
+          <span style={{ fontSize:12, color:'var(--warm)' }}>{incomplete} font{incomplete>1?'s':''} have incomplete metadata.</span>
           <button style={{ marginLeft:'auto', fontSize:11, color:'var(--warm)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', fontFamily:'var(--font-ui)' }}>Review</button>
         </div>
       )}
@@ -167,7 +167,7 @@ function Collection({ collection, setCollection, onNavigate }) {
       </div>
 
       {/* Filters + sort */}
-      <div style={{ padding:'8px 24px', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid rgba(255,255,255,0.04)', flexWrap:'wrap', flexShrink:0 }}>
+      <div style={{ padding:'8px 24px', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid var(--b1)', flexWrap:'wrap', flexShrink:0 }}>
         <div style={{ display:'flex', gap:6, flex:1, flexWrap:'wrap' }}>
           {['All','Serif','Sans-serif','Display'].map(c=>(
             <Chip key={c} label={c} selected={filter===c} onClick={()=>setFilter(c)} size="sm" color="neutral" />
@@ -182,7 +182,7 @@ function Collection({ collection, setCollection, onNavigate }) {
       </div>
 
       {/* Stats */}
-      <div style={{ padding:'8px 24px', display:'flex', gap:24, borderBottom:'1px solid rgba(255,255,255,0.03)', flexShrink:0 }}>
+      <div style={{ padding:'8px 24px', display:'flex', gap:24, borderBottom:'1px solid var(--b1)', flexShrink:0 }}>
         {[
           [`${collection.length} fonts`,'in collection','var(--purple)'],
           [`${avgComp}%`,'avg completeness',avgComp>=85?'var(--teal)':'var(--warm)'],

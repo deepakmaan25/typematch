@@ -633,8 +633,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
 
       <div style={{ padding:'8px 24px', background:'var(--s1)', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:10 }}>
         <Icon name="text_fields" size={14} style={{ color:'var(--t3)', flexShrink:0 }} />
-        <input type="text" value={previewText} onChange={e=>setPreviewText(e.target.value)} style={{ padding:'5px 10px', fontSize:12, background:'var(--s2)', border:'1px solid var(--b1)', width:340, borderRadius:'var(--r-sm)' }} placeholder="Live preview text…" />
-        <span style={{ fontSize:11, color:'var(--t4)' }}>Click a result to expand details</span>
+        <input type="text" value={previewText} onChange={e=>setPreviewText(e.target.value)} style={{ padding:'5px 10px', fontSize:12, background:'var(--s2)', border:'1px solid var(--b1)', flex:1, borderRadius:'var(--r-sm)' }} placeholder="Live preview text…" />
       </div>
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} style={{ padding:'0 24px' }} />
@@ -791,7 +790,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
   }
 
   const Specimen = (
-    <div style={{ fontFamily:font.fontFamily, fontSize:32, fontWeight:700, lineHeight:1.2, color:'var(--t1)', padding:'20px 16px', background:'var(--bg)', borderRadius:'var(--r-lg)' }}>
+    <div style={{ fontFamily:font.fontFamily, fontSize:32, fontWeight:700, lineHeight:1.2, color:'var(--t1)', padding:'20px 16px', background:'var(--s4)', borderRadius:'var(--r-lg)' }}>
       The art of<br />beautiful type.
     </div>
   );
@@ -870,7 +869,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
       ) : (
         <InlineHint text="No score breakdown available — open this font through the Brief flow to compute dimension scores." />
       )}
-      {font.whyFits && <div style={{ padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--b1)', borderRadius:'var(--r-md)' }}>
+      {font.whyFits && <div style={{ padding:'10px 12px', background:'var(--s3)', border:'1px solid var(--b1)', borderRadius:'var(--r-md)' }}>
         <SectionLabel style={{ marginBottom:5 }}>Why it fits</SectionLabel>
         <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>{font.whyFits}</p>
       </div>}
@@ -1022,7 +1021,7 @@ function InlineHint({ text }) {
 }
 function KV({ label, value }) {
   return (
-    <div style={{ padding:'8px 10px', background:'var(--bg)', border:'1px solid var(--b1)', borderRadius:'var(--r-md)' }}>
+    <div style={{ padding:'8px 10px', background:'var(--s3)', border:'1px solid var(--b1)', borderRadius:'var(--r-md)' }}>
       <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--t4)', fontFamily:'var(--font-accent)', marginBottom:3 }}>{label}</div>
       <div style={{ fontSize:12, color:'var(--t1)', wordBreak:'break-word' }}>{value}</div>
     </div>

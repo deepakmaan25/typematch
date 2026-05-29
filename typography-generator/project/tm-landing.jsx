@@ -221,11 +221,11 @@ function Landing({ onStart }) {
           </div>
           <div style={{ padding:'24px 28px' }}>
             <div style={{ display:'flex', gap:10, marginBottom:20 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'rgba(168,127,255,0.08)', border:'1px solid rgba(168,127,255,0.2)', borderRadius:'var(--r-md)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'color-mix(in srgb, var(--purple) 8%, transparent)', border:'1px solid color-mix(in srgb, var(--purple) 20%, transparent)', borderRadius:'var(--r-md)' }}>
                 <Icon name="collections_bookmark" size={13} style={{ color:'var(--purple)' }} />
                 <span style={{ fontSize:11, fontWeight:600, color:'var(--purple)', fontFamily:'var(--font-accent)' }}>From Your Collection</span>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'rgba(45,212,160,0.07)', border:'1px solid rgba(45,212,160,0.2)', borderRadius:'var(--r-md)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 12px', background:'color-mix(in srgb, var(--teal) 7%, transparent)', border:'1px solid color-mix(in srgb, var(--teal) 20%, transparent)', borderRadius:'var(--r-md)' }}>
                 <Icon name="auto_awesome" size={13} style={{ color:'var(--teal)' }} />
                 <span style={{ fontSize:11, fontWeight:600, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Library</span>
               </div>
@@ -236,7 +236,7 @@ function Landing({ onStart }) {
                 { name:'DM Sans',          score:91, src:'collection', mood:'Modern · UI-ready',       family:"'DM Sans',sans-serif",     desc:'Exceptional screen readability. Perfect body complement to a display serif.' },
                 { name:'GT Alpina',        score:88, src:'ai',         mood:'Premium · Authoritative', family:"'Georgia',serif",          desc:'Widely used in premium SaaS. Commercial — Grilli Type.' },
               ].map((f,i)=>(
-                <div key={f.name} className="fade-up" style={{ animationDelay:`${i*.1}s`, display:'flex', alignItems:'center', gap:16, padding:'16px 20px', background:i===0?'rgba(123,168,255,0.06)':'var(--s3)', borderRadius:'var(--r-lg)', border:`1px solid ${i===0?'rgba(123,168,255,0.2)':'var(--b1)'}` }}>
+                <div key={f.name} className="fade-up" style={{ animationDelay:`${i*.1}s`, display:'flex', alignItems:'center', gap:16, padding:'16px 20px', background:i===0?'color-mix(in srgb, var(--primary) 6%, transparent)':'var(--s3)', borderRadius:'var(--r-lg)', border:`1px solid ${i===0?'color-mix(in srgb, var(--primary) 20%, transparent)':'var(--b1)'}` }}>
                   <div style={{ textAlign:'center', minWidth:52 }}>
                     <div style={{ fontSize:22, fontWeight:700, color:f.src==='ai'?'var(--teal)':'var(--purple)', fontFamily:'var(--font-accent)' }}>{f.score}</div>
                     <div style={{ fontSize:8, color:'var(--t4)', textTransform:'uppercase', letterSpacing:'.06em' }}>match</div>

@@ -179,18 +179,18 @@ function PairingStudio({ initialFont }) {
             return (
               <div key={slot}>
                 <div onClick={()=>setActiveSlot(slot)}
-                  style={{ padding:'12px 14px', borderRadius:'var(--r-lg)', border:`1px solid ${isActive?'rgba(123,168,255,0.4)':isLocked?'rgba(45,212,160,0.3)':'var(--b1)'}`, background:isActive?'var(--primary-dim)':isLocked?'var(--teal-dim)':'var(--s2)', cursor:'pointer', transition:'all .15s', marginBottom:0 }}>
+                  style={{ padding:'12px 14px', borderRadius:'var(--r-lg)', border:`1px solid ${isActive?'color-mix(in srgb, var(--primary) 40%, transparent)':isLocked?'color-mix(in srgb, var(--teal) 30%, transparent)':'var(--b1)'}`, background:isActive?'var(--primary-dim)':isLocked?'var(--teal-dim)':'var(--s2)', cursor:'pointer', transition:'all .15s', marginBottom:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
                     <SectionLabel>{slot}</SectionLabel>
                     <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
                       <Tooltip text={isLocked?'Unlock slot':'Lock this slot'}>
-                        <button onClick={e=>{e.stopPropagation();setLockedSlot(isLocked?null:slot);}} style={{ width:24, height:24, borderRadius:'var(--r-sm)', border:'none', background:isLocked?'rgba(45,212,160,0.2)':'rgba(255,255,255,0.04)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:isLocked?'var(--teal)':'var(--t3)' }}>
+                        <button onClick={e=>{e.stopPropagation();setLockedSlot(isLocked?null:slot);}} style={{ width:24, height:24, borderRadius:'var(--r-sm)', border:'none', background:isLocked?'var(--teal-dim)':'var(--nav-hov-bg)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:isLocked?'var(--teal)':'var(--t3)' }}>
                           <Icon name={isLocked?'lock':'lock_open'} size={12} />
                         </button>
                       </Tooltip>
                       {slots.length > 1 && idx < slots.length - 1 && (
                         <Tooltip text={`Swap with ${slots[idx+1]}`}>
-                          <button onClick={e=>{e.stopPropagation();swapSlots(slot,slots[idx+1]);}} style={{ width:24, height:24, borderRadius:'var(--r-sm)', border:'none', background:'rgba(255,255,255,0.04)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--t3)' }}>
+                          <button onClick={e=>{e.stopPropagation();swapSlots(slot,slots[idx+1]);}} style={{ width:24, height:24, borderRadius:'var(--r-sm)', border:'none', background:'var(--nav-hov-bg)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--t3)' }}>
                             <Icon name="swap_vert" size={12} />
                           </button>
                         </Tooltip>
@@ -215,7 +215,7 @@ function PairingStudio({ initialFont }) {
                       <div style={{ display:'flex', gap:4 }}>
                         {[300,400,500,600,700].map(w=>(
                           <button key={w} onClick={()=>setSlotProp(slot,'weight',w)}
-                            style={{ flex:1, padding:'4px 0', fontSize:10, borderRadius:'var(--r-sm)', border:`1px solid ${getSlotProp(slot,'weight')===w?'rgba(123,168,255,0.5)':'var(--b1)'}`, background:getSlotProp(slot,'weight')===w?'var(--primary-dim)':'transparent', color:getSlotProp(slot,'weight')===w?'var(--primary)':'var(--t3)', cursor:'pointer', fontFamily:'var(--font-ui)', fontWeight:w }}>
+                            style={{ flex:1, padding:'4px 0', fontSize:10, borderRadius:'var(--r-sm)', border:`1px solid ${getSlotProp(slot,'weight')===w?'color-mix(in srgb, var(--primary) 50%, transparent)':'var(--b1)'}`, background:getSlotProp(slot,'weight')===w?'var(--primary-dim)':'transparent', color:getSlotProp(slot,'weight')===w?'var(--primary)':'var(--t3)', cursor:'pointer', fontFamily:'var(--font-ui)', fontWeight:w }}>
                             {w}
                           </button>
                         ))}
@@ -253,7 +253,7 @@ function PairingStudio({ initialFont }) {
         </div>
 
         {/* CENTER: Canvas */}
-        <div style={{ flex:1, overflowY:'auto', padding:24, background:'rgba(0,0,0,0.3)', display:'flex', alignItems:'flex-start', justifyContent:'center' }}>
+        <div style={{ flex:1, overflowY:'auto', padding:24, background:'var(--s1)', display:'flex', alignItems:'flex-start', justifyContent:'center' }}>
           <div style={{ width:'100%', maxWidth: context==='mobile' ? 375 : 900, transition:'max-width .3s cubic-bezier(.4,0,.2,1)' }}>
             <PairingCanvas mode={mode} slots={slots} slotFonts={slotFonts} slotProps={slotProps} getSlotProp={getSlotProp} bgObj={bgObj} context={context} customTexts={customTexts} />
           </div>

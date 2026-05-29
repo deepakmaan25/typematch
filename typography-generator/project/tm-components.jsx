@@ -2,8 +2,8 @@
 const { useState, useEffect, useRef } = React;
 
 /* ── Icon ─────────────────────────────────────────────── */
-function Icon({ name, size=20, style={} }) {
-  return <span className="material-icons-round" style={{ fontSize:size, lineHeight:1, display:'inline-flex', alignItems:'center', userSelect:'none', flexShrink:0, ...style }}>{name}</span>;
+function Icon({ name, size=20, fill=0, weight=300, style={} }) {
+  return <span className="material-symbols-outlined" style={{ fontSize:size, lineHeight:1, display:'inline-flex', alignItems:'center', userSelect:'none', flexShrink:0, fontVariationSettings:`'FILL' ${fill},'wght' ${weight},'GRAD' 0,'opsz' ${Math.max(20,Math.min(48,size))}`, ...style }}>{name}</span>;
 }
 
 /* ── Btn — full CSS-var token system w/ MD3 ripple ────── */
@@ -26,10 +26,10 @@ function Btn({ children, variant='contained', onClick, size='md', startIcon, end
   }
 
   const sz = {
-    sm: { pad:'5px 14px',  fs:11, iconSz:13, gap:5 },
-    md: { pad:'8px 20px',  fs:12, iconSz:15, gap:6 },
-    lg: { pad:'12px 28px', fs:14, iconSz:17, gap:8 },
-  }[size] || { pad:'8px 20px', fs:12, iconSz:15, gap:6 };
+    sm: { pad:'4px 12px',  fs:11, iconSz:13, gap:4, minH:26 },
+    md: { pad:'6px 16px',  fs:12, iconSz:15, gap:5, minH:30 },
+    lg: { pad:'10px 24px', fs:13, iconSz:16, gap:6, minH:36 },
+  }[size] || { pad:'6px 16px', fs:12, iconSz:15, gap:5, minH:30 };
 
   // All colors come from CSS variables — theme updates automatically
   const cfg = {
@@ -87,7 +87,7 @@ function Btn({ children, variant='contained', onClick, size='md', startIcon, end
       disabled={disabled || loading}
       style={{
         display:'inline-flex', alignItems:'center', justifyContent:'center', gap:sz.gap,
-        padding:sz.pad, borderRadius:'var(--r-md)',
+        padding:sz.pad, minHeight:sz.minH, borderRadius:'var(--r-md)',
         border:`1px solid ${cfg.border||'transparent'}`,
         background:cfg.bg, color:cfg.color,
         fontSize:sz.fs, fontWeight:600, fontFamily:'var(--font-ui)',

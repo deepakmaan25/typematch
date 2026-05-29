@@ -139,7 +139,7 @@ function HomeView({ collection, onNavigate }) {
           {window.RECOMMENDATION_PRESETS.map(p=>(
             <button key={p.id} onClick={()=>onNavigate('recommend')}
               style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 16px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-lg)', cursor:'pointer', transition:'all .15s', fontFamily:'var(--font-ui)', color:'inherit' }}
-              onMouseEnter={e=>{e.currentTarget.style.background='var(--primary-dim)';e.currentTarget.style.borderColor='rgba(123,168,255,0.3)';}}
+              onMouseEnter={e=>{e.currentTarget.style.background='var(--primary-dim)';e.currentTarget.style.borderColor='color-mix(in srgb, var(--primary) 30%, transparent)';}}
               onMouseLeave={e=>{e.currentTarget.style.background='var(--s2)';e.currentTarget.style.borderColor='var(--b1)';}}>
               <Icon name={p.icon} size={15} style={{ color:'var(--t3)' }} />
               <div style={{ textAlign:'left' }}>
@@ -172,7 +172,7 @@ function SettingsView() {
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
         {[['Library suggestions','Surface scored matches from the open-font library alongside fonts in your collection.',ai,setAi],['Context-aware matching','Use project-context affinity scores to refine ranking.',web,setWeb],['Open source fonts only','Limit all suggestions to freely licensed typefaces.',open,setOpen]].map(([l,d,v,s])=>(
           <div key={l} onClick={()=>s(x=>!x)}
-            style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 18px', background:'var(--s2)', border:`1px solid ${v?'rgba(123,168,255,0.25)':'var(--b1)'}`, borderRadius:'var(--r-lg)', cursor:'pointer', transition:'all .15s' }}>
+            style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 18px', background:'var(--s2)', border:`1px solid ${v?'color-mix(in srgb, var(--primary) 25%, transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', cursor:'pointer', transition:'all .15s' }}>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:14, fontWeight:500, color:'var(--t1)', marginBottom:3 }}>{l}</div>
               <div style={{ fontSize:12, color:'var(--t3)' }}>{d}</div>
@@ -376,7 +376,7 @@ function App() {
                     aria-label={item.label}
                     style={{
                       width:'100%', height:38, borderRadius:'var(--r-lg)', border:'none',
-                      background:isActive?'var(--primary-dim)':navHov===item.id?'rgba(255,255,255,0.04)':'transparent',
+                      background:isActive?'var(--primary-dim)':navHov===item.id?'var(--nav-hov-bg)':'transparent',
                       display:'flex', alignItems:'center', justifyContent: railExpanded ? 'flex-start' : 'center',
                       gap: railExpanded ? 12 : 0, paddingLeft: railExpanded ? 10 : 0,
                       cursor:'pointer', transition:'all .15s', position:'relative',
@@ -410,7 +410,7 @@ function App() {
                   gap: railExpanded ? 12 : 0, paddingLeft: railExpanded ? 10 : 0,
                   color:'var(--t3)', fontFamily:'var(--font-ui)', fontSize:12,
                 }}
-                onMouseEnter={e=>{ e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.color='var(--t1)'; }}
+                onMouseEnter={e=>{ e.currentTarget.style.background='var(--nav-hov-bg)'; e.currentTarget.style.color='var(--t1)'; }}
                 onMouseLeave={e=>{ e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--t3)'; }}
               >
                 <Icon name={railExpanded ? 'chevron_left' : 'chevron_right'} size={16} />
