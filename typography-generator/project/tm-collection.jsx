@@ -149,7 +149,7 @@ function Collection({ collection, setCollection, onNavigate }) {
 
       {/* Toolbar */}
       <div style={{ padding:'16px 24px', display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid var(--b1)', flexWrap:'wrap', flexShrink:0 }}>
-        <h2 style={{ fontSize:18, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)' }}>My Collection</h2>
+        <h2 style={{ fontSize:18, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)' }}>Library</h2>
         <div style={{ marginLeft:'auto', display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ position:'relative' }}>
             <Icon name="search" size={14} style={{ color:'var(--t3)', position:'absolute', left:10, top:'50%', transform:'translateY(-50%)' }} />

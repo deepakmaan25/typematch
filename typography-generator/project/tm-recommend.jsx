@@ -454,7 +454,7 @@ function ResultsLoadingSkeleton() {
     <div role="status" aria-live="polite" aria-busy="true" style={{ height:'100%', display:'flex', flexDirection:'column' }}>
       <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
         <div>
-          <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)' }}>Finding your matches</h2>
+          <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)' }}>Finding your matches</h2>
           <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{stages[stageIdx]}</p>
         </div>
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, color:'var(--t3)', fontSize:11 }}>
@@ -580,7 +580,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
       <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
           <div>
-            <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)' }}>No matches yet</h2>
+            <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)' }}>No matches yet</h2>
             <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{(results.query.moods||[]).slice(0,3).join(' · ') || 'no mood'} · {results.query.projectType||'—'}</p>
           </div>
         </div>
@@ -603,7 +603,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
       <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
         <div>
-          <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)' }}>Recommendations</h2>
+          <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)' }}>Recommendations</h2>
           <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{(results.query.moods||[]).slice(0,3).join(' · ') || 'no mood'} · {results.query.projectType||'—'}</p>
         </div>
         <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
@@ -724,7 +724,7 @@ function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
       <div style={{ padding:'8px 20px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8 }}>
         <button onClick={e=>{e.stopPropagation();onPreview(font);}} style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
           onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
-          <Icon name="tune" size={13} />Open in Pairing Studio
+          <Icon name="compare" size={13} />Open in Pairings
         </button>
         <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Collapse':'Expand details'}</span>
         <Icon name={active?'keyboard_arrow_up':'keyboard_arrow_down'} size={14} style={{ color:'var(--t4)' }} />
@@ -790,7 +790,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
       {Specimen}
       {BadgeRow}
       {!isAI && <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-        {[['Read',font.readability,'var(--primary)'],['Screen',font.screenSuitability,'var(--purple)'],['Print',font.printSuitability,'var(--teal)']].map(([l,v,c2])=>(
+        {[['Read',font.readability,'var(--primary)'],['Screen',font.screenSuitability,'var(--primary)'],['Print',font.printSuitability,'var(--primary)']].map(([l,v,c2])=>(
           <div key={l} style={{ padding:10, background:'var(--bg)', borderRadius:'var(--r-md)', textAlign:'center' }}>
             <ScoreRing value={v||0} size={38} color={c2} />
             <div style={{ fontSize:9, color:'var(--t4)', marginTop:4, textTransform:'uppercase', letterSpacing:'.05em' }}>{l}</div>
@@ -813,7 +813,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
       )}
       {font.notes && <p style={{ fontSize:12, color:'var(--t3)', lineHeight:1.6 }}>{font.notes}</p>}
       <div style={{ display:'flex', gap:8 }}>
-        <Btn fullWidth onClick={()=>onPreview(font)} startIcon="tune" variant="tonal" size="sm">Open in Pairings</Btn>
+        <Btn fullWidth onClick={()=>onPreview(font)} startIcon="compare" variant="tonal" size="sm">Open in Pairings</Btn>
         {onOpenPreview && (
           <Btn fullWidth onClick={()=>onOpenPreview(font)} startIcon="menu_book" variant="outlined" size="sm">Open in Preview</Btn>
         )}
@@ -835,14 +835,14 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
       {hasDims ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:8 }}>
           {[
-            ['Mood fit',      dims.moodFit,         'var(--purple)'],
+            ['Mood fit',      dims.moodFit,         'var(--primary)'],
             ['Use-case fit',  dims.useCaseFit,      'var(--primary)'],
-            ['Brand context', dims.brandContext,    'var(--warm)'],
-            ['Readability',   dims.readability,     'var(--teal)'],
-            ['Screen suit.',  dims.screenSuit,      'var(--primary)'],
-            ['Distinctive',   dims.distinctiveness, 'var(--gold)'],
-            ['Pairing',       dims.pairingHarmony,  'var(--purple)'],
-            ['License',       dims.licenseConf,     'var(--teal)'],
+            ['Brand context', dims.brandContext,    'var(--primary)'],
+            ['Readability',   dims.readability,     'var(--primary)'],
+            ['Screen suit',   dims.screenSuit,      'var(--primary)'],
+            ['Distinctive',   dims.distinctiveness, 'var(--primary)'],
+            ['Pairing',       dims.pairingHarmony,  'var(--primary)'],
+            ['License',       dims.licenseConf,     'var(--primary)'],
           ].filter(([,v])=>v!=null).map(([l,v,c2])=>(
             <ScoreBar key={l} label={l} value={v||0} color={c2} />
           ))}
@@ -920,7 +920,7 @@ function DetailPanel({ font, onClose, onPreview, onOpenPreview, embedded=false }
         <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>{font.tradeoffs}</p>
       </div>}
       <div style={{ display:'flex', gap:8 }}>
-        <Btn fullWidth onClick={()=>onPreview(font)} startIcon="tune" variant="tonal" size="sm">Open in Pairings</Btn>
+        <Btn fullWidth onClick={()=>onPreview(font)} startIcon="compare" variant="tonal" size="sm">Open in Pairings</Btn>
         {onOpenPreview && (
           <Btn fullWidth onClick={()=>onOpenPreview(font)} startIcon="menu_book" variant="outlined" size="sm">Open in Preview</Btn>
         )}

@@ -23,7 +23,7 @@ const SLOT_DEFAULTS = {
   Caption:    { size:11, weight:400, lineHeight:155, tracking:2,  color:'var(--t3)' },
   H1:         { size:48, weight:700, lineHeight:110, tracking:-1, color:'var(--t1)' },
   H2:         { size:32, weight:600, lineHeight:120, tracking:-1, color:'var(--t1)' },
-  Button:     { size:13, weight:600, lineHeight:150, tracking:4,  color:'#09090F' },
+  Button:     { size:13, weight:600, lineHeight:150, tracking:4,  color:'var(--on-primary)' },
   Label:      { size:11, weight:500, lineHeight:150, tracking:6,  color:'var(--t3)' },
 };
 
@@ -138,7 +138,7 @@ function PairingStudio({ initialFont }) {
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
       {/* Top toolbar */}
       <div style={{ padding:'10px 20px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap', flexShrink:0 }}>
-        <h2 style={{ fontSize:16, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)', marginRight:4 }}>Pairing Studio</h2>
+        <h2 style={{ fontSize:16, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)', marginRight:4 }}>Pairings</h2>
         <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
           {STUDIO_MODES.map(m=>(
             <Chip key={m.id} label={m.label} icon={m.icon} selected={mode===m.id} onClick={()=>setMode(m.id)} size="sm" color="neutral" />
