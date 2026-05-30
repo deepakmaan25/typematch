@@ -263,11 +263,11 @@ function PairingStudio({ initialFont }) {
         {showSaved && (
           <div style={{ width:240, borderLeft:'1px solid var(--b1)', overflowY:'auto', padding:16, flexShrink:0 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-              <span style={{ fontSize:13, fontWeight:600, color:'var(--t1)', fontFamily:'var(--font-accent)' }}>Saved</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'var(--t1)', fontFamily:'var(--font-display)' }}>Saved</span>
               <button onClick={()=>setShowSaved(false)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--t3)' }}><Icon name="close" size={15} /></button>
             </div>
             {saved.length === 0 ? (
-              <p style={{ fontSize:12, color:'var(--t3)', padding:'20px 0', textAlign:'center' }}>No saves yet</p>
+              <EmptyState icon="bookmark" title="No saves yet" description="Save a combination to revisit it." style={{ padding:'28px 12px', gap:10 }} />
             ) : saved.map((s,i)=>(
               <div key={i} onClick={()=>{setMode(s.mode);setSlotFonts(s.slots);setBgId(s.bg);}}
                 style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:'var(--r-md)', marginBottom:8, cursor:'pointer', border:'1px solid var(--b1)', transition:'all .15s' }}>

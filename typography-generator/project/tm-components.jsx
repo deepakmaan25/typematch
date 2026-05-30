@@ -304,10 +304,10 @@ function Skeleton({ width='100%', height=16, radius=6, style={} }) {
 }
 
 /* ── EmptyState ───────────────────────────────────────── */
-function EmptyState({ icon, title, description, action, color='var(--primary)' }) {
+function EmptyState({ icon, title, description, action, color='var(--primary)', style={} }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'72px 32px', gap:20, textAlign:'center' }}>
-      <div style={{ width:68, height:68, borderRadius:'50%', background:`color-mix(in srgb, ${color} 12%, transparent)`, border:`1px solid color-mix(in srgb, ${color} 22%, transparent)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'72px 32px', gap:20, textAlign:'center', ...style }}>
+      <div style={{ width:68, height:68, borderRadius:'50%', background:`color-mix(in srgb, ${color} 12%, transparent)`, border:`1px solid color-mix(in srgb, ${color} 22%, transparent)`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
         <Icon name={icon} size={28} style={{ color }} />
       </div>
       <div>
@@ -315,6 +315,38 @@ function EmptyState({ icon, title, description, action, color='var(--primary)' }
         <p style={{ fontSize:13, color:'var(--t3)', lineHeight:1.7, maxWidth:300 }}>{description}</p>
       </div>
       {action && <div style={{ marginTop:8 }}>{action}</div>}
+    </div>
+  );
+}
+
+/* ── LoadingState ─────────────────────────────────────── */
+function LoadingState({ message='Loading…', size='md', style={} }) {
+  const sz = size === 'sm' ? { pad:32, spinSz:20, fs:11 } : { pad:72, spinSz:32, fs:13 };
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:`${sz.pad}px 32px`, gap:16, textAlign:'center', ...style }}>
+      <div style={{ width:sz.spinSz, height:sz.spinSz, borderRadius:'50%', border:'2px solid var(--b2)', borderTopColor:'var(--primary)', animation:'spin .7s linear infinite', flexShrink:0 }} />
+      <p style={{ fontSize:sz.fs, color:'var(--t3)', fontFamily:'var(--font-ui)', margin:0 }}>{message}</p>
+    </div>
+  );
+}
+
+/* ── ErrorState ───────────────────────────────────────── */
+function ErrorState({ title='Something went wrong', message='An unexpected error occurred.', onRetry, retryLabel='Retry', action, style={} }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'72px 32px', gap:20, textAlign:'center', ...style }}>
+      <div style={{ width:68, height:68, borderRadius:'50%', background:'color-mix(in srgb, var(--danger) 10%, transparent)', border:'1px solid color-mix(in srgb, var(--danger) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <Icon name="error_outline" size={28} style={{ color:'var(--danger)' }} />
+      </div>
+      <div>
+        <h3 style={{ fontSize:17, fontWeight:600, color:'var(--t1)', fontFamily:'var(--font-display)', marginBottom:8 }}>{title}</h3>
+        <p style={{ fontSize:13, color:'var(--t3)', lineHeight:1.7, maxWidth:300 }}>{message}</p>
+      </div>
+      {(onRetry || action) && (
+        <div style={{ display:'flex', gap:8, marginTop:4 }}>
+          {onRetry && <Btn onClick={onRetry} startIcon="refresh">{retryLabel}</Btn>}
+          {action}
+        </div>
+      )}
     </div>
   );
 }
@@ -467,4 +499,4 @@ function Inspector({ open, onClose, title, width=380, children }) {
   );
 }
 
-Object.assign(window, { Icon, Btn, FAB, SegmentedButton, Chip, Badge, Card, ProgressBar, ScoreRing, ScoreBar, RangeSlider, Divider, Skeleton, EmptyState, Tooltip, Snackbar, SectionLabel, TabBar, ThemeToggle, Inspector });
+Object.assign(window, { Icon, Btn, FAB, SegmentedButton, Chip, Badge, Card, ProgressBar, ScoreRing, ScoreBar, RangeSlider, Divider, Skeleton, EmptyState, LoadingState, ErrorState, Tooltip, Snackbar, SectionLabel, TabBar, ThemeToggle, Inspector });
