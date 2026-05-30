@@ -1,5 +1,5 @@
 // tm-app.jsx v2 — Redesigned shell, home dashboard, updated nav
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 // Nav labels aligned to audit IA (Brief / Library / Pairings) — route IDs unchanged
 // so every existing flow still resolves. New IA names live in `label`; legacy names
@@ -226,6 +226,56 @@ function TweaksWrapper({ children }) {
   );
 }
 
+/* ── Keyboard shortcuts overlay ─────────────────────────── */
+function ShortcutRow({ k, desc }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 4px' }}>
+      <span style={{ fontSize:12, color:'var(--t2)' }}>{desc}</span>
+      <kbd style={{ fontFamily:'var(--font-mono)', fontSize:11, padding:'2px 8px', background:'var(--s3)', border:'1px solid var(--b2)', borderRadius:'var(--r-sm)', color:'var(--t1)', letterSpacing:0 }}>{k}</kbd>
+    </div>
+  );
+}
+
+function ShortcutsModal({ onClose }) {
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [onClose]);
+  return (
+    <div onClick={onClose}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.48)', zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center', animation:'fadeIn .15s ease', backdropFilter:'blur(3px)' }}>
+      <div onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"
+        style={{ background:'var(--s2)', border:'1px solid var(--b2)', borderRadius:'var(--r-xl)', padding:'22px 24px', width:320, boxShadow:'var(--shadow-lg)', animation:'fadeUp .2s cubic-bezier(0,0,.2,1)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <h3 style={{ fontSize:15, fontWeight:700, color:'var(--t1)', fontFamily:'var(--font-display)' }}>Keyboard shortcuts</h3>
+          <button onClick={onClose}
+            style={{ background:'none', border:'none', cursor:'pointer', color:'var(--t3)', display:'inline-flex', padding:4, borderRadius:'var(--r-sm)' }}
+            onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.background='var(--b1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.background='transparent';}}>
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column' }}>
+          <SectionLabel style={{ marginBottom:6 }}>Navigate</SectionLabel>
+          <ShortcutRow k="H" desc="Home" />
+          <ShortcutRow k="B" desc="Brief" />
+          <ShortcutRow k="P" desc="Pairings" />
+          <ShortcutRow k="V" desc="Preview" />
+          <ShortcutRow k="L" desc="Library" />
+          <ShortcutRow k="A" desc="Add fonts" />
+          <SectionLabel style={{ margin:'12px 0 6px' }}>Actions</SectionLabel>
+          <ShortcutRow k="?" desc="Toggle shortcuts" />
+          <ShortcutRow k="[" desc="Toggle nav rail" />
+          <ShortcutRow k="⌘ ," desc="Settings" />
+          <ShortcutRow k="Esc" desc="Close panel / overlay" />
+        </div>
+        <p style={{ fontSize:10, color:'var(--t4)', marginTop:14, lineHeight:1.5 }}>Navigation shortcuts are disabled when a text field is focused.</p>
+      </div>
+    </div>
+  );
+}
+
 /* ── App root ────────────────────────────────────────────── */
 function App() {
   const [screen,   setScreen]   = useState('landing');
@@ -240,6 +290,10 @@ function App() {
   // Phase 3 wiring: font carried into Preview view. Separate from inspectorTarget
   // so navigating away from Results doesn't lose the preview context.
   const [previewFont, setPreviewFont] = useState(null);
+  // Phase 7: keyboard shortcuts overlay
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const shortcutsOpenRef = useRef(false);
+  useEffect(() => { shortcutsOpenRef.current = showShortcuts; }, [showShortcuts]);
   const [railExpanded, setRailExpanded] = useState(() => {
     try { return localStorage.getItem('tm-rail-expanded') === '1'; } catch { return false; }
   });
@@ -271,6 +325,41 @@ function App() {
     const stillThere = all.some(f => f.id === inspectorTarget.id);
     if (!stillThere) setInspectorTarget(null);
   }, [results, inspectorTarget]);
+
+  // Phase 7: global keyboard shortcuts
+  useEffect(() => {
+    function inputFocused() {
+      const el = document.activeElement;
+      return el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT'||el.isContentEditable);
+    }
+    function onKey(e) {
+      // ⌘/Ctrl+, → Settings (always active, even in inputs)
+      if ((e.metaKey||e.ctrlKey) && e.key===',') {
+        e.preventDefault();
+        setAppView('settings');
+        return;
+      }
+      // Escape → close shortcuts overlay (inspector ESC handled inside Inspector)
+      if (e.key==='Escape') {
+        if (shortcutsOpenRef.current) { setShowShortcuts(false); }
+        return;
+      }
+      // Navigation + toggle shortcuts — skip when a text field is focused
+      if (inputFocused() || e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key) {
+        case 'h': case 'H': setAppView('home');       break;
+        case 'b': case 'B': setAppView('recommend');  break;
+        case 'p': case 'P': setAppView('pairing');    break;
+        case 'v': case 'V': setAppView('preview');    break;
+        case 'l': case 'L': setAppView('collection'); break;
+        case 'a': case 'A': setAppView('addfonts');   break;
+        case '[': toggleRail(); break;
+        case '?': setShowShortcuts(s=>!s); break;
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []); // stable — refs + state setters don't need deps
 
   function toggleTheme() {
     const next = isDark ? 'light' : 'dark';
@@ -344,6 +433,16 @@ function App() {
                 onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.borderColor='var(--b2)';}}
                 onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='var(--b1)';}}>
                 <Icon name="compare" size={15} />
+              </button>
+            </Tooltip>
+
+            <Tooltip text="Keyboard shortcuts (?)">
+              <button onClick={()=>setShowShortcuts(s=>!s)}
+                aria-label="Keyboard shortcuts"
+                style={{ width:30, height:30, borderRadius:'var(--r-md)', background:'var(--s2)', border:'1px solid var(--b1)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--t3)' }}
+                onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.borderColor='var(--b2)';}}
+                onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='var(--b1)';}}>
+                <Icon name="keyboard" size={15} />
               </button>
             </Tooltip>
             <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
@@ -442,6 +541,7 @@ function App() {
         </div>
         <Snackbar message={snack.msg} show={snack.show} type={snack.type} />
       </div>
+      {showShortcuts && <ShortcutsModal onClose={()=>setShowShortcuts(false)} />}
     </TweaksWrapper>
   );
 }
