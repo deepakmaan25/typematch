@@ -1,6 +1,6 @@
 # TypeMatch — Handoff / Working Memory
 
-> Last updated: 2026-05-08
+> Last updated: 2026-05-30
 > Live: https://typematch-mu.vercel.app
 > Repo: https://github.com/deepakmaan25/typematch
 > Project files: `typography-generator/project/`
@@ -32,7 +32,7 @@ The v1 app is deployed and the core loop (Brief → Results → Inspect → Prev
 - Stale inspector cleanup: `useEffect` auto-clears `inspectorTarget` when its font leaves results
 
 ### Components (`tm-components.jsx`)
-- `Btn` (7 variants), `Inspector` (ESC, focus trap, focus return), `Chip`, `Badge`, `RangeSlider`, `Divider`, `Icon`, `EmptyState`, `SectionLabel`
+- `Btn` (7 variants), `Inspector` (ESC, focus trap, focus return), `Chip`, `Badge`, `RangeSlider`, `Divider`, `Icon`, `EmptyState` (with `style` override prop), `LoadingState`, `ErrorState`, `SectionLabel`
 - All components use CSS custom property tokens — no hardcoded colors
 
 ### Brief + Recommendations (`tm-recommend.jsx`)
@@ -145,16 +145,34 @@ Previously active under the old Phase-4-polish plan. Do **not** start these with
 | **Phase 1 Step 3 — GF ingestion pipeline verified and complete** | **Shipped (2026-05-05)** — 1938 families, all enriched, scorer active, DetailPanel null-guards confirmed |
 | **Phase 1 Step 4/5 — Explainability + AI copy cleanup** | **Shipped (2026-05-08)** — `buildWhyText` rewrite, settings/tweak copy, internal comments. Honest structured-scoring language throughout. |
 | **Critical bugfix: pairing-studio `const ALL_FONTS` clobbered window.ALL_FONTS** | **Shipped (2026-05-08)** — Babel transpiles `const` → `var` in classic script mode, leaking to window. Renamed to `PAIRING_STUDIO_FONTS`. Without this fix, GF fonts never appeared in scoring results. |
+| **Live Site Audit Changeset — all 7 phases complete** | **Shipped (2026-05-30)** — see audit changelog below |
 | Google Fonts API integration moved to Phase 1 | ✅ Complete |
 | Backend (Supabase/Firebase) planned for Phase 3 | Active |
 | Font upload + Local Font Access moved into scope (Phase 3 / Phase 4) | Active |
 | Pairing Studio promoted to signature feature | Active |
-| Replace "AI" copy with structured-scoring language | Active |
+| Replace "AI" copy with structured-scoring language | ✅ Complete (Phase 1 Step 4/5 + audit Phase 3) |
 | No build step until justified | Active constraint |
 | Route `id` values are frozen | Active constraint |
 | Local-first development — Vercel deploy only at roadmap checkpoints | Active constraint (2026-04-30) |
-| Brief-as-home route swap | Deferred (was approved-not-shipped) |
-| Single chrome accent (primary only) | Deferred (was approved-partial) |
+| Brief-as-home route swap | ✅ Shipped (audit Phase 2) — default view is now `recommend` |
+| Single chrome accent (primary only) | ✅ Shipped (audit Phases 3–5) — `--purple`/`--teal` chrome uses eliminated; semantic use preserved |
+| Global keyboard shortcuts | ✅ Shipped (audit Phase 7) — H/B/P/V/L/A navigation, ⌘, settings, [ rail, ? help overlay |
+
+## Live Site Audit Changeset (2026-05-30) — complete
+
+All 7 phases shipped. Summary of what changed across the codebase:
+
+| Phase | Files | What changed |
+|---|---|---|
+| 1 | `TypeMatch.html` | Font stack (Plus Jakarta Sans + JetBrains Mono), updated design tokens, Material Symbols Outlined, 13px base density, `color-mix()` |
+| 2 | `tm-app.jsx`, `tm-recommend.jsx` | Brief-as-home (`useState('recommend')`), `RecommendWizard` → `BriefComposer` |
+| 3 | `tm-recommend.jsx`, `tm-pairing-studio.jsx` | h2 headings → `font-display`; score bars/rings → `--primary`; `tune` → `compare` icon; "Open in Pairings" CTAs |
+| 4 | `tm-collection.jsx`, `tm-app.jsx` | Library stats/CTAs → `--primary`; HomeView stats → `font-display`; nav `tune` → `compare` |
+| 5 | `tm-landing.jsx`, `tm-onboarding.jsx` | Step colors, progress bars, logo marks all → flat `--primary`; `font-accent` → `font-display` on numbers |
+| 6 | `tm-components.jsx`, `tm-pairing-studio.jsx` | `LoadingState` + `ErrorState` primitives added and exported; `EmptyState` gains `style` prop; Pairing Studio saved panel uses `EmptyState` |
+| 7 | `tm-app.jsx` | Global keyboard shortcuts (H/B/P/V/L/A nav, `[` rail, `?` overlay, `⌘,` settings); `ShortcutsModal` component; keyboard icon button in top bar |
+
+---
 
 ## Step 2 migration findings (2026-04-30) — resolved in Step 3
 
