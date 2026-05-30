@@ -328,7 +328,7 @@ function App() {
         {/* Top bar */}
         <div style={{ height:50, display:'flex', alignItems:'center', padding:'0 18px', background:'var(--s1)', borderBottom:'1px solid var(--b1)', flexShrink:0, zIndex:100, gap:12 }}>
           <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-            <div style={{ width:26, height:26, borderRadius:6, background:'linear-gradient(135deg,var(--primary),var(--purple))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <div style={{ width:26, height:26, borderRadius:6, background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <span style={{ fontSize:12, fontWeight:800, color:'var(--on-primary)', fontFamily:'var(--font-accent)' }}>T</span>
             </div>
             <span style={{ fontSize:14, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)', letterSpacing:'-.01em' }}>TypeMatch</span>

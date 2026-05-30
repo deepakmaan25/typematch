@@ -46,7 +46,7 @@ function Landing({ onStart }) {
       {/* Nav */}
       <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 48px', position:'sticky', top:0, zIndex:100, background:'color-mix(in srgb,var(--bg) 85%,transparent)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)', borderBottom:'1px solid var(--b1)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:28, height:28, borderRadius:6, background:'linear-gradient(135deg,var(--primary),var(--purple))', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width:28, height:28, borderRadius:6, background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <span style={{ fontSize:14, fontWeight:800, color:'var(--on-primary)', fontFamily:'var(--font-accent)' }}>T</span>
           </div>
           <span style={{ fontSize:16, fontWeight:700, fontFamily:'var(--font-accent)', color:'var(--t1)', letterSpacing:'-.01em' }}>TypeMatch</span>
@@ -238,7 +238,7 @@ function Landing({ onStart }) {
               ].map((f,i)=>(
                 <div key={f.name} className="fade-up" style={{ animationDelay:`${i*.1}s`, display:'flex', alignItems:'center', gap:16, padding:'16px 20px', background:i===0?'color-mix(in srgb, var(--primary) 6%, transparent)':'var(--s3)', borderRadius:'var(--r-lg)', border:`1px solid ${i===0?'color-mix(in srgb, var(--primary) 20%, transparent)':'var(--b1)'}` }}>
                   <div style={{ textAlign:'center', minWidth:52 }}>
-                    <div style={{ fontSize:22, fontWeight:700, color:f.src==='ai'?'var(--teal)':'var(--purple)', fontFamily:'var(--font-accent)' }}>{f.score}</div>
+                    <div style={{ fontSize:22, fontWeight:700, color:'var(--primary)', fontFamily:'var(--font-display)' }}>{f.score}</div>
                     <div style={{ fontSize:8, color:'var(--t4)', textTransform:'uppercase', letterSpacing:'.06em' }}>match</div>
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
@@ -263,14 +263,14 @@ function Landing({ onStart }) {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
             {[
-              { n:'01', color:'var(--purple)', title:'Build your collection', body:"Import typefaces and enrich them with mood, use case, readability, and brand fit metadata. The more you add, the smarter it gets." },
+              { n:'01', color:'var(--primary)', title:'Build your collection', body:"Import typefaces and enrich them with mood, use case, readability, and brand fit metadata. The more you add, the smarter it gets." },
               { n:'02', color:'var(--primary)', title:'Describe your need', body:"Tell TypeMatch the project type, the mood it should express, and how it'll be read. Smart chips and sliders make this fast and precise." },
-              { n:'03', color:'var(--teal)', title:'Get ranked matches', body:'Results split clearly: fonts from your collection ranked by fit, and library suggestions scored against your brief, with full explainability.' },
+              { n:'03', color:'var(--primary)', title:'Get ranked matches', body:'Results split clearly: fonts from your collection ranked by fit, and library suggestions scored against your brief, with full explainability.' },
             ].map((s,i)=>(
               <div key={s.n} className="fade-up" style={{ animationDelay:`${i*.12}s`, display:'flex', gap:20, padding:'24px 20px', borderRadius:'var(--r-lg)', transition:'all .15s' }}
                 onMouseEnter={e=>e.currentTarget.style.background='var(--s2)'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                <div style={{ fontSize:13, fontWeight:800, fontFamily:'var(--font-accent)', color:s.color, minWidth:28 }}>{s.n}</div>
+                <div style={{ fontSize:13, fontWeight:800, fontFamily:'var(--font-display)', color:s.color, minWidth:28 }}>{s.n}</div>
                 <div>
                   <h3 style={{ fontSize:16, fontWeight:600, color:'var(--t1)', marginBottom:6 }}>{s.title}</h3>
                   <p style={{ fontSize:13, color:'var(--t3)', lineHeight:1.65 }}>{s.body}</p>

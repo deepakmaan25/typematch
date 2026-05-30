@@ -126,13 +126,13 @@ function Onboarding({ onComplete }) {
               className="fade-up md3-elevation"
               style={{ animationDelay:`${i*.04}s`,
                 padding:'14px 16px', borderRadius:'var(--r-lg)',
-                border:`1px solid ${sel ? 'color-mix(in srgb,var(--purple) 45%,transparent)' : 'var(--b1)'}`,
-                background: sel ? 'var(--purple-dim)' : 'var(--s2)',
+                border:`1px solid ${sel ? 'color-mix(in srgb,var(--primary) 45%,transparent)' : 'var(--b1)'}`,
+                background: sel ? 'var(--primary-dim)' : 'var(--s2)',
                 cursor:'pointer', textAlign:'left', color:'inherit',
                 transition:'all .2s var(--ease-standard)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                 <Badge label="Google Fonts" color="neutral" />
-                {sel && <Icon name="check_circle" size={16} style={{ color:'var(--purple)' }} />}
+                {sel && <Icon name="check_circle" size={16} style={{ color:'var(--primary)' }} />}
               </div>
               <div style={{ fontFamily:FAMILIES[name], fontSize:20, color:'var(--t1)', marginBottom:4, fontWeight:name==='DM Sans'||name==='Space Grotesk'||name==='Syne'?500:600 }}>{name}</div>
               <div style={{ fontSize:11, color:'var(--t3)' }}>Free · OFL License</div>
@@ -142,8 +142,8 @@ function Onboarding({ onComplete }) {
       </div>
 
       {added.length > 0 && (
-        <div className="scale-in" style={{ padding:'10px 16px', background:'var(--purple-dim)', border:'1px solid color-mix(in srgb,var(--purple) 22%,transparent)', borderRadius:'var(--r-md)', marginBottom:20 }}>
-          <span style={{ fontSize:13, color:'var(--purple)' }}>{added.length} typeface{added.length > 1 ? 's' : ''} selected</span>
+        <div className="scale-in" style={{ padding:'10px 16px', background:'var(--primary-dim)', border:'1px solid color-mix(in srgb,var(--primary) 22%,transparent)', borderRadius:'var(--r-md)', marginBottom:20 }}>
+          <span style={{ fontSize:13, color:'var(--primary)' }}>{added.length} typeface{added.length > 1 ? 's' : ''} selected</span>
         </div>
       )}
 
@@ -212,12 +212,12 @@ function Onboarding({ onComplete }) {
         </p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, width:'100%' }}>
-        <div style={{ padding:'16px 12px', background:'var(--purple-dim)', border:'1px solid color-mix(in srgb,var(--purple) 22%,transparent)', borderRadius:'var(--r-lg)', textAlign:'center' }}>
-          <div style={{ fontSize:24, fontWeight:700, color:'var(--purple)', fontFamily:'var(--font-accent)' }}>{added.length || 6}</div>
-          <div style={{ fontSize:11, color:'var(--t3)' }}>fonts in collection</div>
+        <div style={{ padding:'16px 12px', background:'var(--primary-dim)', border:'1px solid color-mix(in srgb,var(--primary) 22%,transparent)', borderRadius:'var(--r-lg)', textAlign:'center' }}>
+          <div style={{ fontSize:24, fontWeight:700, color:'var(--primary)', fontFamily:'var(--font-display)' }}>{added.length || 6}</div>
+          <div style={{ fontSize:11, color:'var(--t3)' }}>fonts in library</div>
         </div>
         <div style={{ padding:'16px 12px', background:'var(--teal-dim)', border:'1px solid color-mix(in srgb,var(--teal) 22%,transparent)', borderRadius:'var(--r-lg)', textAlign:'center' }}>
-          <div style={{ fontSize:24, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-accent)' }}>Ready</div>
+          <div style={{ fontSize:24, fontWeight:700, color:'var(--teal)', fontFamily:'var(--font-display)' }}>Ready</div>
           <div style={{ fontSize:11, color:'var(--t3)' }}>Library scoring active</div>
         </div>
       </div>
@@ -231,11 +231,11 @@ function Onboarding({ onComplete }) {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', flexDirection:'column' }}>
       <div style={{ height:2, background:'var(--b1)', position:'relative' }}>
-        <div style={{ height:'100%', background:'linear-gradient(90deg,var(--primary),var(--purple))', transition:'width .5s var(--ease-emphasized-decel)', width:`${(step / (totalSteps-1)) * 100}%` }} />
+        <div style={{ height:'100%', background:'var(--primary)', transition:'width .5s var(--ease-emphasized-decel)', width:`${(step / (totalSteps-1)) * 100}%` }} />
       </div>
 
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 48px' }}>
-        <div style={{ width:28, height:28, borderRadius:7, background:'linear-gradient(135deg,var(--primary),var(--purple))', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ width:28, height:28, borderRadius:7, background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <span style={{ fontSize:13, fontWeight:700, color:'var(--on-primary)', fontFamily:'var(--font-accent)' }}>T</span>
         </div>
         <span style={{ fontSize:15, fontWeight:600, fontFamily:'var(--font-accent)', color:'var(--t2)' }}>TypeMatch</span>
