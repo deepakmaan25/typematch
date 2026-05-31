@@ -813,59 +813,61 @@ function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
 
   return (
     <div onClick={onClick} className="fade-up md3-elevation"
-      style={{ background: active?'var(--s3)':'var(--s2)', border:`1px solid ${active?'color-mix(in srgb,var(--primary) 30%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:12, cursor:'pointer', transition:'all .22s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', boxShadow: active?'var(--shadow-md)':'none' }}>
+      style={{ background: active?'var(--s3)':'var(--s2)', border:`1px solid ${active?'color-mix(in srgb,var(--primary) 30%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', overflow:'hidden', marginBottom:8, cursor:'pointer', transition:'border-color .15s, box-shadow .15s, background .15s', boxShadow: active?'var(--shadow-sm)':'none' }}>
 
-      <div style={{ padding:'20px 24px' }}>
-        {/* ── Row 1: source + badges + score ring ── */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+      <div style={{ padding:'12px 16px' }}>
+        {/* ── Row 1: rank + source + score ring ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ fontSize:10, fontWeight:700, color:'var(--t4)', fontFamily:'var(--font-mono)', letterSpacing:'.06em' }}>#{rank}</span>
-            <Badge label={isAI?'Suggestion':'Your library'} color={isAI?'ai':'collection'} dot />
+            <Badge label={isAI?'Suggestion':'Library'} color={isAI?'ai':'collection'} dot />
             {font.variable && <Badge label="Variable" color="primary" />}
             {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
           </div>
-          <ScoreRing value={font.score} size={42} color={color} strokeWidth={3} />
+          <ScoreRing value={font.score} size={34} color={color} strokeWidth={2.8} />
         </div>
 
         {/* ── Font name — the hero ── */}
-        <div style={{ fontFamily:ff, fontSize:36, fontWeight:specimenWeight, color:'var(--t1)', lineHeight:1.05, letterSpacing:'-.02em', marginBottom:4 }}>
+        <div style={{ fontFamily:ff, fontSize:26, fontWeight:specimenWeight, color:'var(--t1)', lineHeight:1.1, letterSpacing:'-.02em', marginBottom:2 }}>
           {font.name}
         </div>
-        <div style={{ fontSize:12, color:'var(--t3)', marginBottom:16, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+        <div style={{ fontSize:11, color:'var(--t3)', marginBottom:10, display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
           {font.foundry && <span>{font.foundry}</span>}
-          {font.foundry && (font.classification||font.subtype) && <span style={{ color:'var(--b3)' }}>·</span>}
+          {font.foundry && font.classification && <span style={{ color:'var(--b3)' }}>·</span>}
           {font.classification && <span>{font.classification}{font.subtype ? ' · '+font.subtype : ''}</span>}
         </div>
 
         {/* ── Specimen in the actual font ── */}
-        <div style={{ fontFamily:ff, fontSize:20, fontWeight:400, color:'var(--t2)', lineHeight:1.5, padding:'14px 0', borderTop:'1px solid var(--b1)', borderBottom:'1px solid var(--b1)', marginBottom:14, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+        <div style={{ height:1, background:'var(--b1)', marginBottom:8 }} />
+        <div style={{ fontFamily:ff, fontSize:15, fontWeight:400, color:'var(--t2)', lineHeight:1.45, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:8 }}>
           {previewText || font.previewText || 'The art of beautiful typography.'}
         </div>
+        <div style={{ height:1, background:'var(--b1)', marginBottom:8 }} />
 
         {/* ── Why it fits ── */}
         {(font.whyFits || font.reason) && (
-          <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, marginBottom:font.caution?6:0 }}>
-            <strong style={{ color, fontWeight:600 }}>Why it fits: </strong>{font.whyFits||font.reason}
+          <p style={{ fontSize:11, color:'var(--t2)', lineHeight:1.55, marginBottom:font.caution?4:0 }}>
+            <strong style={{ color, fontWeight:600 }}>Why: </strong>{font.whyFits||font.reason}
           </p>
         )}
         {font.caution && (
-          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--warning)' }}>
-            <Icon name="warning_amber" size={11} style={{ flexShrink:0 }} />
+          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--warning)', marginTop:2 }}>
+            <Icon name="warning_amber" size={10} style={{ flexShrink:0 }} />
             {font.caution}
           </div>
         )}
       </div>
 
       {/* ── Footer ── */}
-      <div style={{ padding:'8px 20px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8 }}>
+      <div style={{ padding:'6px 14px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8 }}>
         <button onClick={e=>{e.stopPropagation();onPreview(font);}}
           style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
           onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
           onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
-          <Icon name="compare" size={13} />Open in Pairings
+          <Icon name="compare" size={12} />Pairings
         </button>
-        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Inspector open':'Click for details'}</span>
-        <Icon name={active?'keyboard_arrow_up':'keyboard_arrow_down'} size={14} style={{ color:'var(--t4)' }} />
+        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Open':'Details'}</span>
+        <Icon name={active?'keyboard_arrow_up':'keyboard_arrow_down'} size={13} style={{ color:'var(--t4)' }} />
       </div>
     </div>
   );
