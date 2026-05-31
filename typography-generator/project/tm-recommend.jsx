@@ -282,22 +282,48 @@ function buildCautionText(font, dims, query) {
   return cautions.slice(0,2).join(' · ');
 }
 
-/* ── Composer section header ─────────────────────────────── */
-function ComposerSection({ label, icon, hint, children, complete }) {
+/* ── Progressive step section for Brief wizard ───────────── */
+function StepSection({ step, label, complete, active, locked, completedSummary, onReopen, children }) {
+  if (locked) {
+    return (
+      <div style={{ marginBottom:10, padding:'14px 20px', background:'var(--s1)', border:'1px solid var(--b1)', borderRadius:'var(--r-xl)', display:'flex', alignItems:'center', gap:12, opacity:0.45, userSelect:'none' }}>
+        <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--b2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--t4)', flexShrink:0 }}>{step}</div>
+        <span style={{ fontSize:13, color:'var(--t4)' }}>{label}</span>
+        <Icon name="lock" size={13} style={{ color:'var(--t4)', marginLeft:'auto' }} />
+      </div>
+    );
+  }
+  if (complete && !active) {
+    return (
+      <div onClick={onReopen}
+        style={{ marginBottom:10, padding:'12px 20px', background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-xl)', display:'flex', alignItems:'center', gap:12, cursor:'pointer', transition:'all .15s' }}
+        onMouseEnter={e=>{e.currentTarget.style.background='var(--s3)';e.currentTarget.style.borderColor='var(--b2)';}}
+        onMouseLeave={e=>{e.currentTarget.style.background='var(--s2)';e.currentTarget.style.borderColor='var(--b1)';}}>
+        <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <Icon name="check" size={13} style={{ color:'var(--on-primary)' }} />
+        </div>
+        <span style={{ fontSize:13, fontWeight:600, color:'var(--t1)' }}>{label}</span>
+        {completedSummary && <span style={{ fontSize:12, color:'var(--primary)', fontWeight:500, marginLeft:4 }}>{completedSummary}</span>}
+        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--t4)' }}>
+          <Icon name="edit" size={12} />Edit
+        </div>
+      </div>
+    );
+  }
   return (
-    <div style={{ paddingTop:20, paddingBottom:20, borderBottom:'1px solid var(--b1)' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-        <Icon name={icon} size={14} style={{ color: complete ? 'var(--teal)' : 'var(--t3)' }} />
-        <span style={{ fontSize:11, fontWeight:700, color: complete ? 'var(--t2)' : 'var(--t3)', textTransform:'uppercase', letterSpacing:'.06em' }}>{label}</span>
-        {hint && <span style={{ fontSize:11, color:'var(--t4)', marginLeft:4 }}>{hint}</span>}
-        {complete && <Icon name="check_circle" size={13} style={{ color:'var(--teal)', marginLeft:'auto' }} />}
+    <div style={{ marginBottom:16, padding:'22px 24px', background:'var(--s2)', border:'1px solid color-mix(in srgb,var(--primary) 30%,transparent)', borderRadius:'var(--r-xl)', animation:'fadeIn .18s ease' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:18 }}>
+        <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:'var(--on-primary)' }}>{step}</span>
+        </div>
+        <span style={{ fontSize:14, fontWeight:700, color:'var(--t1)' }}>{label}</span>
       </div>
       {children}
     </div>
   );
 }
 
-/* ── Brief composer (Phase 2) — single-page form ─────────── */
+/* ── Brief composer (Phase 2) — progressive stepped form ─── */
 function BriefComposer({ collection, onResults }) {
   const [projectType, setProjectType] = useState('');
   const [contextKey,  setContextKey]  = useState(null);
@@ -308,14 +334,26 @@ function BriefComposer({ collection, onResults }) {
   const [freeOnly,    setFreeOnly]    = useState(false);
   const [query,       setQuery]       = useState('');
   const [loading,     setLoading]     = useState(false);
+  // Progressive step reveal: 1=project, 2=mood, 3=use-cases, 4=context
+  const [activeStep,  setActiveStep]  = useState(1);
 
-  function toggleMood(m) { setMoods(p=>p.includes(m)?p.filter(x=>x!==m):p.length<6?[...p,m]:p); }
-  function toggleUC(u)   { setUseCases(p=>p.includes(u)?p.filter(x=>x!==u):[...p,u]); }
-
-  function pickPreset(preset) {
-    setProjectType(preset.label);
-    setContextKey(preset.context);
+  function selectProjectType(pt) {
+    setProjectType(pt); setContextKey(null);
+    if (activeStep === 1) setActiveStep(2);
   }
+  function pickPreset(preset) {
+    setProjectType(preset.label); setContextKey(preset.context);
+    if (activeStep === 1) setActiveStep(2);
+  }
+  function toggleMood(m) {
+    setMoods(p => {
+      const next = p.includes(m) ? p.filter(x=>x!==m) : p.length<6 ? [...p,m] : p;
+      // Auto-advance to use cases on first mood selection
+      if (!p.includes(m) && p.length===0 && activeStep===2) setActiveStep(3);
+      return next;
+    });
+  }
+  function toggleUC(u) { setUseCases(p=>p.includes(u)?p.filter(x=>x!==u):[...p,u]); }
 
   // Track scoring failures for inline retry.
   const [error, setError] = useState(null);
@@ -409,97 +447,116 @@ function BriefComposer({ collection, onResults }) {
   if (error)   return <RecommendErrorState message={error} onRetry={retryRecommend} onBack={() => setError(null)} />;
 
   const canRun = !!projectType && moods.length > 0 && useCases.length > 0;
-
-  // Live summary — updates as user fills in the form
-  const summaryParts = [];
-  if (projectType) summaryParts.push(<span key="pt">for <strong style={{ color:'var(--primary)', fontWeight:600 }}>{projectType}</strong></span>);
-  if (moods.length)    summaryParts.push(<span key="m"> · <strong style={{ color:'var(--primary)', fontWeight:600 }}>{moods.slice(0,3).join(', ')}</strong></span>);
-  if (useCases.length) summaryParts.push(<span key="uc"> · <strong style={{ color:'var(--purple)', fontWeight:600 }}>{useCases.slice(0,2).join(', ')}</strong></span>);
-  if (familiarity > 60) summaryParts.push(<span key="fam" style={{ color:'var(--t3)' }}> · distinctive</span>);
-  else if (familiarity < 40) summaryParts.push(<span key="fam" style={{ color:'var(--t3)' }}> · familiar</span>);
-  if (freeOnly) summaryParts.push(<span key="free" style={{ color:'var(--t3)' }}> · OFL only</span>);
+  const stepsComplete = [!!projectType, moods.length>0, useCases.length>0];
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
 
       {/* ── Header ── */}
-      <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', flexShrink:0, display:'flex', alignItems:'center', gap:12 }}>
+      <div style={{ padding:'14px 28px', borderBottom:'1px solid var(--b1)', flexShrink:0, display:'flex', alignItems:'center', gap:16 }}>
         <div style={{ flex:1 }}>
           <h1 style={{ fontFamily:'var(--font-display)', fontSize:19, fontWeight:700, letterSpacing:'-.02em', color:'var(--t1)', lineHeight:1.2 }}>Brief</h1>
-          <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>Describe your project — get scored matches instantly</p>
+          <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>Answer 3 questions — get scored font matches instantly</p>
         </div>
-        <div style={{ display:'flex', gap:4 }}>
-          {[!!projectType, moods.length>0, useCases.length>0].map((done,i) => (
-            <div key={i} style={{ width:20, height:4, borderRadius:2, background: done ? 'var(--primary)' : 'var(--b2)', transition:'background .2s' }} />
+        {/* Step indicators */}
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          {stepsComplete.map((done, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ width:22, height:22, borderRadius:'50%', background: done?'var(--primary)': stepsComplete.slice(0,i).every(Boolean)?'var(--primary-dim)':'var(--b1)', border: (!done && stepsComplete.slice(0,i).every(Boolean))?'2px solid var(--primary)':'2px solid transparent', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .2s', flexShrink:0 }}>
+                {done ? <Icon name="check" size={11} style={{ color:'var(--on-primary)' }} /> : <span style={{ fontSize:10, fontWeight:700, color: stepsComplete.slice(0,i).every(Boolean)?'var(--primary)':'var(--t4)' }}>{i+1}</span>}
+              </div>
+              {i < 2 && <div style={{ width:14, height:2, background:done?'var(--primary)':'var(--b2)', borderRadius:1, transition:'background .2s' }} />}
+            </div>
           ))}
         </div>
-        <Btn onClick={runRecommend} disabled={!canRun} endIcon="auto_awesome" size="sm">Find matches</Btn>
+        <Btn onClick={runRecommend} disabled={!canRun} endIcon="auto_awesome">Find matches</Btn>
       </div>
 
-      {/* ── Scrollable form ── */}
-      <div style={{ flex:1, overflowY:'auto', padding:'0 24px 32px', maxWidth:700 }}>
+      {/* ── Steps ── */}
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 28px 32px' }}>
 
-        {/* §1 Project */}
-        <ComposerSection label="Project" icon="category" hint="What are you building?" complete={!!projectType}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7, marginBottom:14 }}>
+        {/* Step 1 — Project */}
+        <StepSection step={1} label="What are you building?" complete={!!projectType} active={activeStep===1} locked={false}
+          completedSummary={projectType} onReopen={()=>setActiveStep(1)}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:16 }}>
             {(window.PROJECT_TYPES||[]).map(pt=>(
-              <button key={pt} onClick={()=>{setProjectType(pt); setContextKey(null);}}
-                style={{ padding:'10px 14px', borderRadius:'var(--r-md)', border:`1px solid ${projectType===pt?'color-mix(in srgb,var(--primary) 45%,transparent)':'var(--b1)'}`, background:projectType===pt?'var(--primary-dim)':'var(--s2)', color:projectType===pt?'var(--t1)':'var(--t2)', fontSize:12, cursor:'pointer', textAlign:'left', fontFamily:'var(--font-ui)', display:'flex', alignItems:'center', gap:8, transition:'all .12s' }}>
+              <button key={pt} onClick={()=>selectProjectType(pt)}
+                style={{ padding:'11px 14px', borderRadius:'var(--r-md)', border:`1px solid ${projectType===pt?'color-mix(in srgb,var(--primary) 50%,transparent)':'var(--b1)'}`, background:projectType===pt?'var(--primary-dim)':'transparent', color:projectType===pt?'var(--t1)':'var(--t2)', fontSize:12, fontWeight:projectType===pt?600:400, cursor:'pointer', textAlign:'left', fontFamily:'var(--font-ui)', display:'flex', alignItems:'center', gap:8, transition:'all .12s' }}
+                onMouseEnter={e=>{ if(projectType!==pt){e.currentTarget.style.background='var(--s3)';e.currentTarget.style.borderColor='var(--b2)';} }}
+                onMouseLeave={e=>{ if(projectType!==pt){e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='var(--b1)';} }}>
                 {projectType===pt && <Icon name="check" size={12} style={{ color:'var(--primary)', flexShrink:0 }} />}
                 {pt}
               </button>
             ))}
           </div>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            {(window.RECOMMENDATION_PRESETS||[]).map(p=>(
-              <Chip key={p.id} label={p.label} icon={p.icon} selected={projectType===p.label} onClick={()=>pickPreset(p)} color="neutral" size="sm" />
-            ))}
+          <div style={{ borderTop:'1px solid var(--b1)', paddingTop:14 }}>
+            <p style={{ fontSize:11, color:'var(--t4)', marginBottom:8 }}>Or pick a preset</p>
+            <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
+              {(window.RECOMMENDATION_PRESETS||[]).map(p=>(
+                <Chip key={p.id} label={p.label} icon={p.icon} selected={projectType===p.label} onClick={()=>pickPreset(p)} color="neutral" size="sm" />
+              ))}
+            </div>
           </div>
-        </ComposerSection>
+        </StepSection>
 
-        {/* §2 Mood */}
-        <ComposerSection label="Mood & tone" icon="palette" hint="pick up to 6" complete={moods.length>0}>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+        {/* Step 2 — Mood */}
+        <StepSection step={2} label="What's the mood & tone?" complete={moods.length>0} active={activeStep===2} locked={!projectType}
+          completedSummary={moods.length ? moods.slice(0,4).join(', ')+(moods.length>4?` +${moods.length-4}`:'') : ''}
+          onReopen={()=>setActiveStep(2)}>
+          <p style={{ fontSize:12, color:'var(--t3)', marginBottom:12 }}>Pick up to 6 words that describe your brand's personality.</p>
+          <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:18 }}>
             {(window.MOOD_OPTIONS||[]).map(m=>(
               <Chip key={m} label={m} selected={moods.includes(m)} onClick={()=>toggleMood(m)} color="primary" size="sm" />
             ))}
           </div>
-          <RangeSlider label="Familiarity vs. Distinctiveness" value={familiarity} onChange={setFamiliarity} leftLabel="Safe" rightLabel="Distinctive" />
-        </ComposerSection>
+          <RangeSlider label="Familiarity vs. Distinctiveness" value={familiarity} onChange={setFamiliarity} leftLabel="Safe & familiar" rightLabel="Bold & distinctive" />
+        </StepSection>
 
-        {/* §3 Use cases */}
-        <ComposerSection label="Use cases" icon="text_fields" hint="Where will it appear?" complete={useCases.length>0}>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+        {/* Step 3 — Use cases */}
+        <StepSection step={3} label="Where will the type appear?" complete={useCases.length>0} active={activeStep===3} locked={moods.length===0}
+          completedSummary={useCases.length ? useCases.slice(0,3).join(', ')+(useCases.length>3?` +${useCases.length-3}`:'') : ''}
+          onReopen={()=>setActiveStep(3)}>
+          <p style={{ fontSize:12, color:'var(--t3)', marginBottom:12 }}>Select every context this type needs to handle.</p>
+          <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:18 }}>
             {(window.USE_CASES||[]).map(u=>(
               <Chip key={u} label={u} selected={useCases.includes(u)} onClick={()=>toggleUC(u)} color="collection" size="sm" />
             ))}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <ToggleRow label="Prioritise screen readability" value={readFirst} onChange={setReadFirst} />
             <ToggleRow label="Open-source / free only" value={freeOnly} onChange={setFreeOnly} />
           </div>
-        </ComposerSection>
+        </StepSection>
 
-        {/* §4 Context (optional) */}
-        <ComposerSection label="Context" icon="notes" hint="optional" complete={!!query.trim()}>
-          <textarea value={query} onChange={e=>setQuery(e.target.value)} rows={3}
-            placeholder="e.g. 'Should feel like Linear or Pitch — technical but refined. Works at tiny sizes in a data-dense UI.'"
-            style={{ marginBottom:10 }} />
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            {['Works at small sizes','Feels premium but approachable','Distinctive without being loud','Reads well at body sizes'].map(s=>(
-              <Chip key={s} label={s} onClick={()=>setQuery(s)} size="sm" color="neutral" />
-            ))}
+        {/* Step 4 — Context (optional, only appears when steps 1-3 done) */}
+        {canRun && (
+          <div style={{ marginBottom:20, padding:'18px 22px', background:'var(--s2)', border:'1px dashed var(--b2)', borderRadius:'var(--r-xl)', animation:'fadeIn .2s ease' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+              <Icon name="notes" size={14} style={{ color:'var(--t3)' }} />
+              <span style={{ fontSize:13, fontWeight:600, color:'var(--t2)' }}>Any extra context?</span>
+              <span style={{ fontSize:11, color:'var(--t4)' }}>optional</span>
+            </div>
+            <textarea value={query} onChange={e=>setQuery(e.target.value)} rows={2}
+              placeholder="e.g. 'Should feel like Linear or Pitch — technical but refined. Works at tiny sizes in a data-dense UI.'"
+              style={{ marginBottom:10 }} />
+            <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
+              {['Works at small sizes','Feels premium but approachable','Distinctive without being loud','Reads well at body sizes'].map(s=>(
+                <Chip key={s} label={s} onClick={()=>setQuery(q=>q?q:s)} size="sm" color="neutral" />
+              ))}
+            </div>
           </div>
-        </ComposerSection>
+        )}
 
-        {/* ── Action row ── */}
-        <div style={{ paddingTop:20, display:'flex', alignItems:'center', gap:14 }}>
-          <p style={{ flex:1, fontSize:12, color:'var(--t3)', lineHeight:1.5 }}>
-            {summaryParts.length ? summaryParts : 'Select project type, mood, and use cases to find matches'}
+        {/* ── CTA ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, paddingTop:4 }}>
+          <p style={{ fontSize:12, color:'var(--t3)', lineHeight:1.5 }}>
+            {canRun
+              ? <><strong style={{ color:'var(--t2)' }}>{projectType}</strong>{moods.length>0 && <> · {moods.slice(0,3).join(', ')}</>}{useCases.length>0 && <> · {useCases.slice(0,2).join(', ')}</>}</>
+              : <span style={{ color:'var(--t4)' }}>Complete all 3 steps to find your matches</span>
+            }
           </p>
           <Btn onClick={runRecommend} disabled={!canRun} endIcon="auto_awesome">Find matches</Btn>
         </div>
-
       </div>
     </div>
   );
@@ -540,22 +597,28 @@ function ResultsLoadingSkeleton() {
       </div>
       <div style={{ flex:1, overflowY:'auto', padding:20 }}>
         {[0,1,2].map(i => (
-          <div key={i} style={{ background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:10 }}>
-            <div style={{ padding:'18px 20px', display:'flex', gap:14, alignItems:'flex-start' }}>
-              <Skeleton width={50} height={50} radius={25} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', gap:7, marginBottom:10 }}>
-                  <Skeleton width={70} height={14} radius={3} />
-                  <Skeleton width={60} height={14} radius={3} />
-                  <Skeleton width={50} height={14} radius={3} />
+          <div key={i} style={{ background:'var(--s2)', border:'1px solid var(--b1)', borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:12 }}>
+            <div style={{ padding:'20px 24px' }}>
+              {/* badges row */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+                <div style={{ display:'flex', gap:8 }}>
+                  <Skeleton width={55} height={20} radius={10} />
+                  <Skeleton width={70} height={20} radius={10} />
                 </div>
-                <Skeleton width={'72%'} height={26} radius={4} style={{ marginBottom:8 }} />
-                <Skeleton width={'40%'} height={11} radius={3} style={{ marginBottom:12 }} />
-                <Skeleton width={'100%'} height={56} radius={6} />
+                <Skeleton width={42} height={42} radius={21} />
               </div>
+              {/* font name hero */}
+              <Skeleton width={'55%'} height={38} radius={4} style={{ marginBottom:6 }} />
+              <Skeleton width={'30%'} height={13} radius={3} style={{ marginBottom:16 }} />
+              {/* specimen */}
+              <Skeleton width={'100%'} height={22} radius={4} style={{ marginBottom:6 }} />
+              <Skeleton width={'80%'} height={22} radius={4} style={{ marginBottom:14 }} />
+              {/* why it fits */}
+              <Skeleton width={'100%'} height={14} radius={3} style={{ marginBottom:5 }} />
+              <Skeleton width={'70%'} height={14} radius={3} />
             </div>
             <div style={{ padding:'8px 20px', borderTop:'1px solid var(--b1)' }}>
-              <Skeleton width={140} height={11} radius={3} />
+              <Skeleton width={120} height={11} radius={3} />
             </div>
           </div>
         ))}
@@ -742,67 +805,66 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
 }
 
 function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
-  const isAI  = font.source === 'ai';
-  const color = isAI ? 'var(--teal)' : 'var(--purple)';
-  const dims  = font.dims || {};
+  const isAI   = font.source === 'ai';
+  const color  = isAI ? 'var(--teal)' : 'var(--purple)';
+  const isSans = (font.classification||'').toLowerCase().includes('sans');
+  const specimenWeight = isSans ? 500 : 700;
+  const ff = font.fontFamily || font.cssFamily || 'inherit';
 
   return (
     <div onClick={onClick} className="fade-up md3-elevation"
-      style={{ background: active ? 'var(--s3)' : 'var(--s2)', border:`1px solid ${active ? 'var(--b3)' : 'var(--b1)'}`, borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:10, cursor:'pointer', transition:'all .25s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', boxShadow: active ? 'var(--shadow-md)' : 'var(--shadow-sm)' }}>
-      <div style={{ padding:'18px 20px' }}>
-        <div style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
-          <ScoreRing value={font.score} size={50} color={color} strokeWidth={3.5} />
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:10, alignItems:'center' }}>
-              <Badge label={isAI?'Library':'Your Collection'} color={isAI?'ai':'collection'} dot />
-              <Badge label={font.classification||font.subtype||'Font'} color="neutral" />
-              {font.variable && <Badge label="Variable" color="primary" />}
-              {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
-              <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)', fontFamily:'var(--font-accent)', letterSpacing:'.08em', textTransform:'uppercase' }}>#{rank}</span>
-            </div>
-            <div style={{ fontFamily:font.fontFamily, fontSize:26, fontWeight:font.classification==='Sans-serif'?500:700, color:'var(--t1)', lineHeight:1.2, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {previewText.substring(0,42)||font.name}
-            </div>
-            <div style={{ fontSize:11, color:'var(--t3)', marginBottom:12 }}>{font.name} · {font.foundry}</div>
+      style={{ background: active?'var(--s3)':'var(--s2)', border:`1px solid ${active?'color-mix(in srgb,var(--primary) 30%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-xl)', overflow:'hidden', marginBottom:12, cursor:'pointer', transition:'all .22s var(--ease-emphasized,cubic-bezier(.2,0,0,1))', boxShadow: active?'var(--shadow-md)':'none' }}>
 
-            {(font.whyFits || font.reason || font.caution) && (
-              <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, padding:'10px 14px', background:'var(--s3)', borderRadius:'var(--r-md)', borderLeft:`3px solid ${color}` }}>
-                {(font.whyFits || font.reason) && (
-                  <><strong style={{ color, fontWeight:600 }}>Why it fits: </strong>{font.whyFits||font.reason}</>
-                )}
-                {font.caution && (
-                  <div style={{ marginTop:(font.whyFits||font.reason)?6:0, fontSize:11, color:'var(--warning)' }}>
-                    <Icon name="warning_amber" size={11} style={{ marginRight:4, verticalAlign:'middle' }} />
-                    Caution: {font.caution}
-                  </div>
-                )}
-              </div>
-            )}
+      <div style={{ padding:'20px 24px' }}>
+        {/* ── Row 1: source + badges + score ring ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+            <span style={{ fontSize:10, fontWeight:700, color:'var(--t4)', fontFamily:'var(--font-mono)', letterSpacing:'.06em' }}>#{rank}</span>
+            <Badge label={isAI?'Suggestion':'Your library'} color={isAI?'ai':'collection'} dot />
+            {font.variable && <Badge label="Variable" color="primary" />}
+            {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
           </div>
+          <ScoreRing value={font.score} size={42} color={color} strokeWidth={3} />
         </div>
 
-        {/* Phase 2: Score breakdown + Good/Avoid moved to the shell-level
-            Inspector (DetailPanel embedded mode). The card stays compact;
-            full breakdown opens on click. */}
+        {/* ── Font name — the hero ── */}
+        <div style={{ fontFamily:ff, fontSize:36, fontWeight:specimenWeight, color:'var(--t1)', lineHeight:1.05, letterSpacing:'-.02em', marginBottom:4 }}>
+          {font.name}
+        </div>
+        <div style={{ fontSize:12, color:'var(--t3)', marginBottom:16, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+          {font.foundry && <span>{font.foundry}</span>}
+          {font.foundry && (font.classification||font.subtype) && <span style={{ color:'var(--b3)' }}>·</span>}
+          {font.classification && <span>{font.classification}{font.subtype ? ' · '+font.subtype : ''}</span>}
+        </div>
 
-        {isAI && font.tags && (
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:12 }}>
-            {(font.tags||font.goodFor||[]).slice(0,4).map(t=><Chip key={t} label={t} size="sm" color="ai" />)}
-          </div>
+        {/* ── Specimen in the actual font ── */}
+        <div style={{ fontFamily:ff, fontSize:20, fontWeight:400, color:'var(--t2)', lineHeight:1.5, padding:'14px 0', borderTop:'1px solid var(--b1)', borderBottom:'1px solid var(--b1)', marginBottom:14, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+          {previewText || font.previewText || 'The art of beautiful typography.'}
+        </div>
+
+        {/* ── Why it fits ── */}
+        {(font.whyFits || font.reason) && (
+          <p style={{ fontSize:12, color:'var(--t2)', lineHeight:1.65, marginBottom:font.caution?6:0 }}>
+            <strong style={{ color, fontWeight:600 }}>Why it fits: </strong>{font.whyFits||font.reason}
+          </p>
         )}
-        {isAI && font.usedBy && (
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8, flexWrap:'wrap' }}>
-            <span style={{ fontSize:10, color:'var(--t4)' }}>Seen at:</span>
-            {font.usedBy.slice(0,3).map(u=><span key={u} style={{ fontSize:10, color:'var(--teal)', padding:'1px 6px', background:'color-mix(in srgb,var(--teal) 8%,transparent)', borderRadius:3 }}>{u}</span>)}
+        {font.caution && (
+          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--warning)' }}>
+            <Icon name="warning_amber" size={11} style={{ flexShrink:0 }} />
+            {font.caution}
           </div>
         )}
       </div>
+
+      {/* ── Footer ── */}
       <div style={{ padding:'8px 20px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8 }}>
-        <button onClick={e=>{e.stopPropagation();onPreview(font);}} style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
-          onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
+        <button onClick={e=>{e.stopPropagation();onPreview(font);}}
+          style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
+          onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+          onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
           <Icon name="compare" size={13} />Open in Pairings
         </button>
-        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Collapse':'Expand details'}</span>
+        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Inspector open':'Click for details'}</span>
         <Icon name={active?'keyboard_arrow_up':'keyboard_arrow_down'} size={14} style={{ color:'var(--t4)' }} />
       </div>
     </div>
