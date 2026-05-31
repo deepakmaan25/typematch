@@ -84,13 +84,86 @@ function freeFormBoost(font, query) {
   let b = 0;
   const haystack = [
     ...(font.goodFor||[]), ...(font.tags||[]), ...(font.mood||[]),
-    font.notes||'', font.subtype||'',
+    ...(font.personality||[]), ...(font.useCases||[]), ...(font.brandFit||[]),
+    font.notes||'', font.subtype||'', font.name||'',
   ].join(' | ').toLowerCase();
-  ['small sizes','small','tiny','dense','data','table'].forEach(k=>{ if(q.includes(k) && haystack.match(/ui|small|table|data/)) b += 4; });
-  ['premium','luxury','editorial','elegant'].forEach(k=>{ if(q.includes(k) && haystack.match(/luxury|editorial|premium|elegant/)) b += 4; });
-  ['tech','startup','saas','developer'].forEach(k=>{ if(q.includes(k) && haystack.match(/tech|saas|developer|engineered/)) b += 4; });
-  ['print','book','reading','long'].forEach(k=>{ if(q.includes(k) && haystack.match(/print|reading|long|body/)) b += 4; });
-  return Math.min(15, b);
+
+  // Intent clusters — each cluster fires at most once (+5), total cap 20
+  const clusters = [
+    { triggers:['small size','small text','tiny','dense ui','data table','compact','11px','12px','13px'], match:/ui|small|table|data|compact|tabular/, pts:5 },
+    { triggers:['premium','luxury','high-end','upscale','exclusive'], match:/luxury|premium|editorial|elegant|refined/, pts:5 },
+    { triggers:['editorial','magazine','article','longread','journalism','publish'], match:/editorial|reading|publishing|journal|literary/, pts:5 },
+    { triggers:['tech','startup','saas','developer','devtool','software','b2b'], match:/tech|saas|developer|engineered|startup|systematic/, pts:5 },
+    { triggers:['print','book','reading','long-form','longform','body text'], match:/print|reading|long|body|book/, pts:5 },
+    { triggers:['warm','friendly','approachable','welcoming','soft','gentle'], match:/warm|friendly|approachable|soft|rounded|gentle/, pts:5 },
+    { triggers:['minimal','clean','simple','restrained','quiet','neutral'], match:/minimal|clean|neutral|simple|restrained/, pts:5 },
+    { triggers:['bold','strong','impactful','powerful','statement'], match:/bold|strong|display|impactful|powerful/, pts:5 },
+    { triggers:['modern','contemporary','current','fresh'], match:/modern|contemporary|current|fresh|geometric/, pts:4 },
+    { triggers:['code','programming','terminal','monospace','cli'], match:/code|mono|terminal|programm|developer/, pts:5 },
+    { triggers:['accessible','a11y','inclusive','legible'], match:/accessible|legible|inclusive|high.*x-height/, pts:5 },
+    { triggers:['variable','responsive type','optical','adaptable'], match:/variable|optical|adaptable/, pts:5 },
+    { triggers:['wedding','event','celebration','festive','occasion'], match:/wedding|celebrat|festive|elegant|flowing/, pts:5 },
+    { triggers:['gaming','esport','game','sci-fi','futurist'], match:/gaming|sci-fi|futuristic|esport|tech-forward/, pts:5 },
+    { triggers:['humanist','warmth','organic','natural'], match:/humanist|warm|organic|natural|calligraphic/, pts:4 },
+    { triggers:['condensed','narrow','tight','compact headlines'], match:/condensed|narrow|condensed/, pts:5 },
+  ];
+  for (const cl of clusters) {
+    if (cl.triggers.some(t => q.includes(t)) && haystack.match(cl.match)) {
+      b += cl.pts;
+    }
+  }
+  // Direct name mention — user explicitly names a font or its foundry
+  const familyLc = (font.name||font.family||'').toLowerCase();
+  if (q.includes(familyLc) && familyLc.length > 3) b += 12;
+
+  return Math.min(20, b);
+}
+
+// Penalty for fonts whose explicit avoidFor list conflicts with what the user
+// actually asked for. Keeps obviously wrong fonts from appearing in top results.
+function avoidForPenalty(font, useCases, queryText) {
+  if (!font.avoidFor || !font.avoidFor.length) return 0;
+  const avoidLc = font.avoidFor.map(a => a.toLowerCase());
+  let penalty = 0;
+  // Use-case mismatch — score against the use-case tokens the scorer already uses
+  const ucHaystack = (useCases || []).join(' ').toLowerCase();
+  avoidLc.forEach(a => {
+    const aWords = a.split(/\W+/).filter(w => w.length > 2);
+    if (aWords.some(w => ucHaystack.includes(w))) penalty += 10;
+  });
+  // Free-text query match
+  const q = (queryText || '').toLowerCase();
+  if (q) {
+    avoidLc.forEach(a => {
+      if (a.split(/\W+/).filter(w=>w.length>3).some(w => q.includes(w))) penalty += 6;
+    });
+  }
+  return Math.min(28, penalty);
+}
+
+// Enforces category diversity so results don't collapse to 5 near-identical fonts.
+// Applies to the open-library pool only (collection results reflect what the user owns).
+// maxSameCategory=2 means at most 2 serifs, 2 sans-serifs, etc. in the top 5.
+// If the pool is too narrow to fill 5 diverse results, remaining slots fill without constraint.
+function enforceVariety(ranked, limit=5, maxSameCategory=2) {
+  const catCount = {};
+  const picked = [];
+  const spill   = [];
+  for (const font of ranked) {
+    const cat = (font.category || font.classification || 'unknown').toLowerCase();
+    const n   = catCount[cat] || 0;
+    if (n < maxSameCategory) { picked.push(font); catCount[cat] = n + 1; }
+    else spill.push(font);
+    if (picked.length >= limit) break;
+  }
+  // Fill remaining slots if diversity couldn't be satisfied
+  if (picked.length < limit) {
+    const inPicked = new Set(picked.map(f => f.id));
+    for (const font of spill) {
+      if (!inPicked.has(font.id)) { picked.push(font); if (picked.length >= limit) break; }
+    }
+  }
+  return picked;
 }
 
 // Temporary enrichment gate (Step 4 / Phase 1).
@@ -145,7 +218,8 @@ function scoreFont(font, query, collection=[]) {
   let raw = 0;
   Object.keys(W).forEach(k => raw += dims[k] * W[k]);
   raw += freeFormBoost(font, query.query);
-  return { dims, score: Math.min(99, Math.max(40, Math.round(raw))) };
+  raw -= avoidForPenalty(font, query.useCases || [], query.query || '');
+  return { dims, score: Math.min(99, Math.max(28, Math.round(raw))) };
 }
 
 // Composes the "why this fits" sentence shown on each result card.
@@ -272,7 +346,7 @@ function BriefComposer({ collection, onResults }) {
         const candidatePool = (window.__GF_CATALOG_READY && window.ALL_FONTS)
           ? window.ALL_FONTS
           : (window.OPEN_FONT_LIBRARY || []);
-        const libRanked = candidatePool
+        const libScored = candidatePool
           .filter(f => passesEnrichmentGate(f))
           .map(font => {
             const { dims, score } = scoreFont(font, q, collection);
@@ -283,8 +357,9 @@ function BriefComposer({ collection, onResults }) {
               confidence: score,
             };
           }).filter(f => !collectionNames.has(f.name))
-            .sort((a,b)=>b.score-a.score)
-            .slice(0, 5);
+            .sort((a,b)=>b.score-a.score);
+        // Enforce variety: max 2 fonts of the same category in top 5 library suggestions
+        const libRanked = enforceVariety(libScored, 5, 2);
 
         onResults({ collection: collectionResults, ai: libRanked, query: q });
       } catch (err) {
@@ -312,13 +387,14 @@ function BriefComposer({ collection, onResults }) {
         const candidatePool = (window.__GF_CATALOG_READY && window.ALL_FONTS)
           ? window.ALL_FONTS
           : (window.OPEN_FONT_LIBRARY || []);
-        const libRanked = candidatePool
+        const libScored2 = candidatePool
           .filter(f => passesEnrichmentGate(f))
           .map(font => {
             const { dims, score } = scoreFont(font, q, collection);
             return { ...font, score, dims, source:'ai',
               whyFits: buildWhyText(font, dims, q), caution: buildCautionText(font, dims, q), confidence: score };
-          }).filter(f => !collectionNames.has(f.name)).sort((a,b)=>b.score-a.score).slice(0, 5);
+          }).filter(f => !collectionNames.has(f.name)).sort((a,b)=>b.score-a.score);
+        const libRanked = enforceVariety(libScored2, 5, 2);
         onResults({ collection: collectionResults, ai: libRanked, query: q });
       } catch (err) {
         console.error('[TypeMatch] retry scoring failed', err);
