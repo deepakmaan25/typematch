@@ -282,6 +282,64 @@ function buildCautionText(font, dims, query) {
   return cautions.slice(0,2).join(' · ');
 }
 
+/* ── Fact-grounded result presentation ───────────────────────
+   These derive presentation directly from the computed score and
+   dimension breakdown — no guesswork. The same numbers the engine
+   ranks on are the numbers the UI explains.
+─────────────────────────────────────────────────────────────── */
+
+// Match-strength tier derived from the final 0-99 score.
+// Thresholds chosen so a typical complete brief yields a small
+// number of "Excellent" results, a band of "Strong", then the tail.
+function matchTier(score) {
+  if (score >= 90) return { label:'Excellent match', short:'Excellent', color:'var(--teal)',    level:4 };
+  if (score >= 76) return { label:'Strong match',    short:'Strong',    color:'var(--primary)', level:3 };
+  if (score >= 60) return { label:'Good match',      short:'Good',      color:'var(--warm)',    level:2 };
+  return                  { label:'Fair match',      short:'Fair',      color:'var(--t3)',      level:1 };
+}
+
+const DIM_LABELS = {
+  moodFit:        'Mood match',
+  useCaseFit:     'Use-case fit',
+  brandContext:   'Context fit',
+  readability:    'Readability',
+  screenSuit:     'Screen performance',
+  distinctiveness:'Distinctiveness',
+  pairingHarmony: 'Pairing harmony',
+  licenseConf:    'License confidence',
+};
+
+// The single strongest dimension — the fact the recommendation leans on most.
+function strongestSignal(dims) {
+  if (!dims) return null;
+  let best=null, bestV=-1;
+  Object.keys(DIM_LABELS).forEach(k => {
+    const v = dims[k];
+    if (typeof v === 'number' && v > bestV) { bestV = v; best = k; }
+  });
+  return best ? { key:best, label:DIM_LABELS[best], value:Math.round(bestV) } : null;
+}
+
+// Confidence reflects metadata provenance, stated honestly:
+//   curated/open-library (completeness ≥ 80) → data-backed
+//   heuristic GF entries  (completeness < 80) → inferred from category
+function dataConfidence(font) {
+  const c = font.completeness != null ? font.completeness : 100;
+  if (c >= 80) return { label:'Curated data', icon:'verified', backed:true };
+  return { label:'Inferred', icon:'help', backed:false };
+}
+
+// Concrete brief facts a font satisfied — used for "matched on" chips.
+function matchedFacts(font, query) {
+  const moods    = query?.moods    || [];
+  const useCases = query?.useCases || [];
+  const fontMoods = (font.mood||[]).map(m=>m.toLowerCase());
+  const moodHits  = moods.filter(m => fontMoods.includes(m.toLowerCase()));
+  const haystack  = [...(font.goodFor||[]), ...(font.useCases||[])].join(' | ').toLowerCase();
+  const ucHits    = useCases.filter(u => haystack.includes(u.toLowerCase().split('&')[0].trim().split(' ')[0]));
+  return { moodHits, ucHits };
+}
+
 /* ── Progressive step section for Brief wizard ───────────── */
 function StepSection({ step, label, complete, active, locked, completedSummary, onReopen, children }) {
   if (locked) {
@@ -730,7 +788,7 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
             description="Try widening the mood, removing the open-source filter, or adding a use case you'd accept."
             action={<div style={{ display:'flex', gap:8 }}>
               <Btn variant="ghost" onClick={onNewSearch}>Start over</Btn>
-              <Btn startIcon="tune" onClick={onNewSearch}>Refine brief</Btn>
+              <Btn startIcon="auto_awesome" onClick={onNewSearch}>Refine brief</Btn>
             </div>}
           />
         </div>
@@ -738,27 +796,62 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
     );
   }
 
+  // Fact-based result summary — counts derived from the same tiers the cards show.
+  const allResults = [...results.collection, ...results.ai];
+  const excellentN = allResults.filter(f => matchTier(f.score).level === 4).length;
+  const strongN    = allResults.filter(f => matchTier(f.score).level === 3).length;
+  const topFont    = allResults.slice().sort((a,b)=>b.score-a.score)[0];
+  const briefMoods = (results.query.moods||[]).slice(0,4);
+  const SAMPLE_PRESETS = ['The art of beautiful typography.','Sphinx of black quartz, judge my vow','1234567890 — $€£¥'];
+
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
-      <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-        <div>
-          <h2 style={{ fontSize:17, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)' }}>Recommendations</h2>
-          <p style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{(results.query.moods||[]).slice(0,3).join(' · ') || 'no mood'} · {results.query.projectType||'—'}</p>
+      {/* ── Header: summary band ── */}
+      <div style={{ padding:'16px 28px 14px', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'flex-start', gap:16, flexShrink:0 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:10, marginBottom:7 }}>
+            <h2 style={{ fontSize:19, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--t1)', letterSpacing:'-.02em' }}>Your matches</h2>
+            <span style={{ fontSize:12, color:'var(--t3)' }}>
+              {allResults.length} fonts
+              {excellentN>0 && <> · <strong style={{ color:'var(--teal)', fontWeight:600 }}>{excellentN} excellent</strong></>}
+              {strongN>0 && <> · <strong style={{ color:'var(--primary)', fontWeight:600 }}>{strongN} strong</strong></>}
+            </span>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:'var(--t4)' }}>Scored for</span>
+            {results.query.projectType && <Badge label={results.query.projectType} color="primary" />}
+            {briefMoods.map(m=><span key={m} style={{ fontSize:11, color:'var(--t2)' }}>· {m}</span>)}
+          </div>
         </div>
-        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
-          <Btn variant="ghost" size="sm" startIcon="refresh" onClick={onNewSearch}>New search</Btn>
-          <Btn variant="tonal" size="sm" startIcon="compare" onClick={()=>onPreview(activeFont || results.collection[0] || results.ai[0])}>Open in Studio</Btn>
+        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+          <Btn variant="ghost" size="sm" startIcon="auto_awesome" onClick={onNewSearch}>New brief</Btn>
+          <Btn variant="tonal" size="sm" startIcon="compare" onClick={()=>onPreview(activeFont || topFont)}>Open top in Pairings</Btn>
         </div>
       </div>
 
-      <div style={{ padding:'8px 24px', background:'var(--s1)', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:10 }}>
-        <Icon name="text_fields" size={14} style={{ color:'var(--t3)', flexShrink:0 }} />
-        <input type="text" value={previewText} onChange={e=>setPreviewText(e.target.value)} style={{ padding:'5px 10px', fontSize:12, background:'var(--s2)', border:'1px solid var(--b1)', flex:1, borderRadius:'var(--r-sm)' }} placeholder="Live preview text…" />
+      {/* ── Live preview control ── */}
+      <div style={{ padding:'10px 28px', background:'var(--s1)', borderBottom:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+        <Icon name="text_fields" size={15} style={{ color:'var(--t3)', flexShrink:0 }} />
+        <input type="text" value={previewText} onChange={e=>setPreviewText(e.target.value)}
+          aria-label="Preview text for all result cards"
+          style={{ padding:'6px 12px', fontSize:12, flex:1, minWidth:200, borderRadius:'var(--r-md)' }} placeholder="Type to preview across all fonts…" />
+        <div style={{ display:'flex', gap:5 }}>
+          {SAMPLE_PRESETS.map((s,i)=>(
+            <Tooltip key={i} text={s}>
+              <button onClick={()=>setPreviewText(s)} aria-label={`Preview sample ${i+1}`}
+                style={{ width:30, height:28, borderRadius:'var(--r-sm)', border:'1px solid var(--b1)', background:'var(--s2)', color:'var(--t3)', cursor:'pointer', fontSize:11, fontFamily:'var(--font-mono)' }}
+                onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.borderColor='var(--b2)';}}
+                onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';e.currentTarget.style.borderColor='var(--b1)';}}>
+                {i===0?'Aa':i===1?'Pg':'123'}
+              </button>
+            </Tooltip>
+          ))}
+        </div>
       </div>
 
-      <TabBar tabs={tabs} active={tab} onChange={setTab} style={{ padding:'0 24px' }} />
+      <TabBar tabs={tabs} active={tab} onChange={setTab} style={{ padding:'0 28px' }} />
 
-      <div style={{ flex:1, overflowY:'auto', padding:20 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:'18px 28px 28px' }}>
         {/* Phase 2: Inspector lives in the shell. Results renders a single
             full-width column; clicking a card opens the shell-level inspector
             via onSelectFont. When mounted without a shell (no onSelectFont
@@ -768,22 +861,26 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
             {(tab==='all'||tab==='collection') && results.collection.length>0 && (
               <div style={{ marginBottom:tab==='all'?20:0 }}>
                 {tab==='all' && (
-                  <div style={{ display:'flex', alignItems:'baseline', gap:14, marginBottom:14 }}>
-                    <SectionLabel>From your library</SectionLabel>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                    <Icon name="collections_bookmark" size={13} style={{ color:'var(--purple)' }} />
+                    <SectionLabel style={{ color:'var(--t2)' }}>From your library</SectionLabel>
                     <Divider style={{ flex:1, marginBottom:0 }} />
                     <span style={{ fontSize:11, color:'var(--t4)', fontFamily:'var(--font-ui)' }}>{results.collection.length}</span>
                   </div>
                 )}
-                {results.collection.map((f,i)=>(
-                  <ResultCard key={f.id} font={f} rank={i+1} previewText={previewText} active={activeFont?.id===f.id} onClick={()=>handleCardClick(f)} onPreview={onPreview} />
-                ))}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', columnGap:10, alignItems:'start' }}>
+                  {results.collection.map((f,i)=>(
+                    <ResultCard key={f.id} font={f} rank={i+1} previewText={previewText} active={activeFont?.id===f.id} onClick={()=>handleCardClick(f)} onPreview={onPreview} query={results.query} />
+                  ))}
+                </div>
               </div>
             )}
             {(tab==='all'||tab==='ai') && results.ai.length>0 && (
               <div>
                 {tab==='all' && (
-                  <div style={{ display:'flex', alignItems:'baseline', gap:14, marginBottom:14, marginTop:4 }}>
-                    <SectionLabel>Library suggestions</SectionLabel>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, marginTop:4 }}>
+                    <Icon name="auto_awesome" size={13} style={{ color:'var(--teal)' }} />
+                    <SectionLabel style={{ color:'var(--t2)' }}>Open library suggestions</SectionLabel>
                     <Tooltip text="Surfaced from a curated open-font library, scored against your brief">
                       <Icon name="info" size={12} style={{ color:'var(--t4)', cursor:'help' }} />
                     </Tooltip>
@@ -791,9 +888,11 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
                     <span style={{ fontSize:11, color:'var(--t4)', fontFamily:'var(--font-ui)' }}>{results.ai.length}</span>
                   </div>
                 )}
-                {results.ai.map((f,i)=>(
-                  <ResultCard key={f.id} font={f} rank={i+1} previewText={previewText} active={activeFont?.id===f.id} onClick={()=>handleCardClick(f)} onPreview={onPreview} />
-                ))}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', columnGap:10, alignItems:'start' }}>
+                  {results.ai.map((f,i)=>(
+                    <ResultCard key={f.id} font={f} rank={i+1} previewText={previewText} active={activeFont?.id===f.id} onClick={()=>handleCardClick(f)} onPreview={onPreview} query={results.query} />
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -804,70 +903,108 @@ function Results({ results, onNewSearch, onPreview, onSelectFont, selectedFontId
   );
 }
 
-function ResultCard({ font, rank, previewText, active, onClick, onPreview }) {
+function ResultCard({ font, rank, previewText, active, onClick, onPreview, query }) {
   const isAI   = font.source === 'ai';
-  const color  = isAI ? 'var(--teal)' : 'var(--purple)';
   const isSans = (font.classification||'').toLowerCase().includes('sans');
   const specimenWeight = isSans ? 500 : 700;
   const ff = font.fontFamily || font.cssFamily || 'inherit';
 
+  const tier    = matchTier(font.score);
+  const signal  = strongestSignal(font.dims);
+  const conf    = dataConfidence(font);
+  const facts   = matchedFacts(font, query);
+  const isTop   = rank === 1;
+
   return (
     <div onClick={onClick} className="fade-up md3-elevation"
-      style={{ background: active?'var(--s3)':'var(--s2)', border:`1px solid ${active?'color-mix(in srgb,var(--primary) 30%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', overflow:'hidden', marginBottom:8, cursor:'pointer', transition:'border-color .15s, box-shadow .15s, background .15s', boxShadow: active?'var(--shadow-sm)':'none' }}>
+      style={{ position:'relative', background: active?'var(--s3)':'var(--s2)', border:`1px solid ${active?'color-mix(in srgb,var(--primary) 35%,transparent)':'var(--b1)'}`, borderRadius:'var(--r-lg)', overflow:'hidden', marginBottom:8, cursor:'pointer', transition:'border-color .15s, box-shadow .15s, background .15s', boxShadow: active?'var(--shadow-sm)':'none' }}>
+
+      {/* Top-match accent rail */}
+      {isTop && <div style={{ position:'absolute', top:0, left:0, bottom:0, width:3, background:tier.color }} />}
 
       <div style={{ padding:'12px 16px' }}>
-        {/* ── Row 1: rank + source + score ring ── */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <span style={{ fontSize:10, fontWeight:700, color:'var(--t4)', fontFamily:'var(--font-mono)', letterSpacing:'.06em' }}>#{rank}</span>
-            <Badge label={isAI?'Suggestion':'Library'} color={isAI?'ai':'collection'} dot />
+        {/* ── Row 1: tier + badges · score ring ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', minWidth:0 }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'2px 9px', borderRadius:'var(--r-pill)', background:`color-mix(in srgb, ${tier.color} 14%, transparent)`, color:tier.color, fontSize:10, fontWeight:700, letterSpacing:'.04em', textTransform:'uppercase', fontFamily:'var(--font-accent)', whiteSpace:'nowrap' }}>
+              <span style={{ width:5, height:5, borderRadius:'50%', background:tier.color }} />
+              {isTop ? 'Top · '+tier.short : tier.short}
+            </span>
             {font.variable && <Badge label="Variable" color="primary" />}
             {font.license?.match(/OFL|Apache/) && <Badge label="Free" color="success" />}
           </div>
-          <ScoreRing value={font.score} size={34} color={color} strokeWidth={2.8} />
+          <ScoreRing value={font.score} size={36} color="var(--primary)" strokeWidth={2.8} />
         </div>
 
         {/* ── Font name — the hero ── */}
-        <div style={{ fontFamily:ff, fontSize:26, fontWeight:specimenWeight, color:'var(--t1)', lineHeight:1.1, letterSpacing:'-.02em', marginBottom:2 }}>
+        <div style={{ fontFamily:ff, fontSize:26, fontWeight:specimenWeight, color:'var(--t1)', lineHeight:1.1, letterSpacing:'-.02em', marginBottom:3 }}>
           {font.name}
         </div>
         <div style={{ fontSize:11, color:'var(--t3)', marginBottom:10, display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
           {font.foundry && <span>{font.foundry}</span>}
           {font.foundry && font.classification && <span style={{ color:'var(--b3)' }}>·</span>}
           {font.classification && <span>{font.classification}{font.subtype ? ' · '+font.subtype : ''}</span>}
+          <span style={{ color:'var(--b3)' }}>·</span>
+          <span style={{ color:isAI?'var(--teal)':'var(--purple)' }}>{isAI?'open library':'your library'}</span>
         </div>
 
         {/* ── Specimen in the actual font ── */}
-        <div style={{ height:1, background:'var(--b1)', marginBottom:8 }} />
-        <div style={{ fontFamily:ff, fontSize:15, fontWeight:400, color:'var(--t2)', lineHeight:1.45, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:8 }}>
+        <div style={{ height:1, background:'var(--b1)', marginBottom:9 }} />
+        <div style={{ fontFamily:ff, fontSize:15, fontWeight:400, color:'var(--t2)', lineHeight:1.45, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:9 }}>
           {previewText || font.previewText || 'The art of beautiful typography.'}
         </div>
-        <div style={{ height:1, background:'var(--b1)', marginBottom:8 }} />
+        <div style={{ height:1, background:'var(--b1)', marginBottom:9 }} />
+
+        {/* ── Matched-on facts (from the brief) ── */}
+        {(facts.moodHits.length>0 || facts.ucHits.length>0) && (
+          <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:8 }}>
+            {facts.moodHits.slice(0,3).map(m=>(
+              <span key={'m'+m} style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 7px', borderRadius:'var(--r-pill)', background:'var(--primary-dim)', color:'var(--primary)', fontWeight:500 }}>
+                <Icon name="check" size={9} />{m}
+              </span>
+            ))}
+            {facts.ucHits.slice(0,2).map(u=>(
+              <span key={'u'+u} style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 7px', borderRadius:'var(--r-pill)', background:'var(--purple-dim)', color:'var(--purple)', fontWeight:500 }}>
+                <Icon name="check" size={9} />{u}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* ── Why it fits ── */}
         {(font.whyFits || font.reason) && (
           <p style={{ fontSize:11, color:'var(--t2)', lineHeight:1.55, marginBottom:font.caution?4:0 }}>
-            <strong style={{ color, fontWeight:600 }}>Why: </strong>{font.whyFits||font.reason}
+            <strong style={{ color:'var(--t1)', fontWeight:600 }}>Why: </strong>{font.whyFits||font.reason}
           </p>
         )}
         {font.caution && (
-          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--warning)', marginTop:2 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--warning)', marginTop:3 }}>
             <Icon name="warning_amber" size={10} style={{ flexShrink:0 }} />
             {font.caution}
           </div>
         )}
       </div>
 
-      {/* ── Footer ── */}
-      <div style={{ padding:'6px 14px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:8 }}>
+      {/* ── Footer: fact strip + actions ── */}
+      <div style={{ padding:'7px 14px', borderTop:'1px solid var(--b1)', display:'flex', alignItems:'center', gap:10, background:'color-mix(in srgb, var(--t1) 2%, transparent)' }}>
+        {signal && (
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:10, color:'var(--t3)', fontFamily:'var(--font-mono)' }}>
+            <Icon name="trending_up" size={11} style={{ color:'var(--primary)' }} />
+            {signal.label} {signal.value}
+          </span>
+        )}
+        <Tooltip text={conf.backed ? 'Scored from hand-curated metadata' : 'Inferred from category — verify before committing'}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:10, color:conf.backed?'var(--teal)':'var(--t4)', cursor:'help' }}>
+            <Icon name={conf.icon} size={11} fill={conf.backed?1:0} />{conf.label}
+          </span>
+        </Tooltip>
         <button onClick={e=>{e.stopPropagation();onPreview(font);}}
-          style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
-          onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
-          onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
+          style={{ marginLeft:'auto', fontSize:11, fontWeight:500, color:'var(--t2)', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:'var(--font-ui)' }}
+          onMouseEnter={e=>e.currentTarget.style.color='var(--primary)'}
+          onMouseLeave={e=>e.currentTarget.style.color='var(--t2)'}>
           <Icon name="compare" size={12} />Pairings
         </button>
-        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--t4)' }}>{active?'Open':'Details'}</span>
-        <Icon name={active?'keyboard_arrow_up':'keyboard_arrow_down'} size={13} style={{ color:'var(--t4)' }} />
+        <Icon name={active?'keyboard_arrow_up':'chevron_right'} size={14} style={{ color:'var(--t4)' }} />
       </div>
     </div>
   );

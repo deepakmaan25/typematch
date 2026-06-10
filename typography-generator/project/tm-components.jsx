@@ -248,13 +248,13 @@ function ScoreRing({ value, size=44, color='var(--primary)', label, strokeWidth=
   const off  = circ - (value/100)*circ;
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-      <svg width={size} height={size}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--b2)" strokeWidth={strokeWidth} />
+      <svg width={size} height={size} style={{ display:'block' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--b1)" strokeWidth={strokeWidth} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
           strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
           style={{ transformOrigin:`${size/2}px ${size/2}px`, transform:'rotate(-90deg)', transition:'stroke-dashoffset .9s cubic-bezier(0,0,.2,1)' }} />
-        <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="middle"
-          style={{ fill:'var(--t1)', fontSize:size*.28, fontFamily:'var(--font-ui)', fontWeight:600 }}>{value}</text>
+        <text x={size/2} y={size/2+0.5} textAnchor="middle" dominantBaseline="middle"
+          style={{ fill:'var(--t1)', fontSize:size*.34, fontFamily:'var(--font-display)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{value}</text>
       </svg>
       {label && <span style={{ fontSize:9, color:'var(--t3)', letterSpacing:'.06em', textTransform:'uppercase', fontFamily:'var(--font-accent)' }}>{label}</span>}
     </div>
